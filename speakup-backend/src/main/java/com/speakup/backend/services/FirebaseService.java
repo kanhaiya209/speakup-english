@@ -72,6 +72,41 @@ public class FirebaseService {
     }
 
     /**
+     * Updates an existing user's profile fields in Firestore.
+     * Only non-null fields from the request are written.
+     *
+     * @param userId           the Firebase UID
+     * @param nativeLanguage   the user's native language (nullable)
+     * @param englishLevel     the user's English level (nullable)
+     * @param learningGoal     the user's learning goal (nullable)
+     * @param dailyGoalMinutes the user's daily goal in minutes (nullable)
+     * @return the updated UserProfile
+     */
+    public UserProfile updateUserProfile(String userId, String nativeLanguage,
+                                         String englishLevel, String learningGoal,
+                                         Integer dailyGoalMinutes)
+            throws ExecutionException, InterruptedException {
+
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentReference docRef = db.collection(USERS_COLLECTION).document(userId);
+
+        Map<String, Object> updates = new HashMap<>();
+        if (nativeLanguage != null) updates.put("nativeLanguage", nativeLanguage);
+        if (englishLevel != null) updates.put("englishLevel", englishLevel);
+        if (learningGoal != null) updates.put("learningGoal", learningGoal);
+        if (dailyGoalMinutes != null) updates.put("dailyGoalMinutes", dailyGoalMinutes);
+
+        if (!updates.isEmpty()) {
+            docRef.update(updates).get();
+            log.info("Updated profile for user {}: {}", userId, updates.keySet());
+        }
+
+        // Return the refreshed profile
+        DocumentSnapshot snapshot = docRef.get().get();
+        return snapshotToUserProfile(snapshot);
+    }
+
+    /**
      * Converts a Firestore document snapshot to a UserProfile record.
      */
     private UserProfile snapshotToUserProfile(DocumentSnapshot snapshot) {
