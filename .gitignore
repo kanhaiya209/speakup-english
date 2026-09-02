@@ -38,3 +38,12 @@ lerna-debug.log*
 *.sublime-workspace
 .DS_Store
 Thumbs.db
+
+# AI Agent configs
+.agents/
+.claude/
+.grok/
+.kilocode/
+.kiro/
+.minimax/
+.qwen/
