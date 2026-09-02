@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: speakup-backend
+  config:
+    import:
+      - "optional:file:.env[.properties]"
+      - "optional:file:../.env[.properties]"
+
+  threads:
+    virtual:
+      enabled: true
+
+  ai:
+    openai:
+      base-url: https://api.groq.com/openai/v1
+      api-key: ${GROQ_API_KEY}
+      chat:
+        options:
+          model: llama-3.3-70b-versatile
+          temperature: 0.85
+          max-tokens: 500
+
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID}
+
+app:
+  jwt-secret: ${JWT_SECRET}
+  groq-api-key: ${GROQ_API_KEY}
+  gemini-api-key: ${GEMINI_API_KEY}
+  openrouter-api-key: ${OPENROUTER_API_KEY}
+  elevenlabs-api-key: ${ELEVENLABS_API_KEY}
+
+logging:
+  level:
+    com.speakup: DEBUG
+    org.springframework.ai: INFO
