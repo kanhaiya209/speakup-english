@@ -41,7 +41,7 @@ const STEPS = [
   {
     key: 'learningGoal',
     title: 'What is your learning goal?',
-    subtitle: 'We'll focus your practice sessions around this',
+    subtitle: "We'll focus your practice sessions around this",
     options: [
       { value: 'Job Interviews', icon: '💼', label: 'Job Interviews' },
       { value: 'Business Communication', icon: '📊', label: 'Business Communication' },
