@@ -1,0 +1,1 @@
+~/Projects/speakup-english/start-backend.sh
