@@ -103,8 +103,26 @@ graph TD
 - **Framework**: React 19
 - **Bundler**: Vite 8 with HMR
 - **Authentication**: Firebase Client SDK
-- **Styling**: Modern Vanilla CSS (Design Tokens, Glassmorphism, Micro-animations)
+- **State**: Redux Toolkit + React Router v6
+- **Styling**: Tailwind CSS v4, config-less — design tokens in `@theme` inside `src/index.css`
 - **Deployment**: Vercel
+
+---
+
+## 🎨 Design System
+
+The UI follows one specification: **[`speakup-frontend/DESIGN_SYSTEM.md`](speakup-frontend/DESIGN_SYSTEM.md)**.
+Vercel-dashboard aesthetic — pure black, flat, monochrome, borders instead of shadows.
+Read it before changing any `.jsx` or `.css` file; it is the source of truth, and most of
+its rules are machine-enforced:
+
+```bash
+cd speakup-frontend && npm run verify
+```
+
+`lint` blocks banned imports, `check:design` blocks banned utility classes, `build` must
+pass. AI agents are pointed at the same document by [`CLAUDE.md`](CLAUDE.md) and
+[`AGENTS.md`](AGENTS.md).
 
 ---
 
@@ -129,12 +147,21 @@ speakup-english/
 │
 └── speakup-frontend/              # React 19 + Vite Frontend
     ├── src/
+    │   ├── api/                   # axios instance + interceptors
     │   ├── assets/                # Icons and branding
-    │   ├── App.jsx                # Core application views
-    │   ├── index.css              # Global styles & theme tokens
+    │   ├── components/            # Navbar + ui/ (legacy, ProfileSetup only)
+    │   ├── hooks/                 # useQuiz
+    │   ├── pages/                 # Login, ProfileSetup, Quiz, Home, Settings, Admin
+    │   ├── store/                 # Redux Toolkit authSlice
+    │   ├── App.jsx                # Routes and guards
+    │   ├── index.css              # Tailwind v4 @theme design tokens
     │   └── main.jsx               # Entry point
+    ├── scripts/
+    │   └── check-design.mjs       # Design-system class checker (npm run check:design)
+    ├── DESIGN_SYSTEM.md           # UI source of truth — read before any design work
     ├── .env                       # Frontend environment config
     ├── .env.example               # Frontend environment template
+    ├── eslint.config.js           # Lint + banned-import guard
     ├── package.json               # Node dependencies
     └── vite.config.js             # Vite configuration
 ```
@@ -276,9 +303,11 @@ cd speakup-english
 Contributions are welcome! If you'd like to improve SpeakUp:
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+3. **If your change touches the UI, read [`speakup-frontend/DESIGN_SYSTEM.md`](speakup-frontend/DESIGN_SYSTEM.md) first**
+4. Run `npm run verify` in `speakup-frontend/` — lint, design check and build must pass
+5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+6. Push to the branch (`git push origin feature/AmazingFeature`)
+7. Open a Pull Request
 
 ---
 

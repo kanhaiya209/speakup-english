@@ -4,6 +4,32 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+/**
+ * Design-system guard. See DESIGN_SYSTEM.md §3 (hard rules) and §10 (legacy exception).
+ * Glob patterns, not exact paths, so a deeper relative import cannot slip through.
+ * Banned everywhere except ProfileSetup.jsx — the one page still on the pre-redesign
+ * glow design — and the ui/ components it depends on.
+ */
+const bannedDesignImports = [
+  {
+    group: ['framer-motion', 'framer-motion/*', 'motion', 'motion/*'],
+    message:
+      'framer-motion is banned — see DESIGN_SYSTEM.md §3. The motion budget is transition-colors, plus transition-all on progress bars and animate-spin on spinners.',
+  },
+  {
+    group: ['**/ui/shimmer-button', '**/ui/shimmer-button.jsx'],
+    message: 'ShimmerButton is legacy — see DESIGN_SYSTEM.md §10. Use the button recipes in §4.',
+  },
+  {
+    group: ['**/ui/background-beams', '**/ui/background-beams.jsx'],
+    message: 'BackgroundBeams is legacy — see DESIGN_SYSTEM.md §10. Backgrounds are flat bg-canvas.',
+  },
+  {
+    group: ['**/ui/meteors', '**/ui/meteors.jsx'],
+    message: 'Meteors is legacy — see DESIGN_SYSTEM.md §10. No decorative animation.',
+  },
+]
+
 export default defineConfig([
   globalIgnores(['dist']),
   {
@@ -16,6 +42,16 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: bannedDesignImports }],
+    },
+  },
+  {
+    // The documented exception — do not add files to this list.
+    files: ['src/pages/ProfileSetup.jsx', 'src/components/ui/**'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
 ])

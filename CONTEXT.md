@@ -1,4 +1,7 @@
-# SpeakUp — Project Context for Claude
+# SpeakUp — Project Context
+
+Design rules: [`speakup-frontend/DESIGN_SYSTEM.md`](speakup-frontend/DESIGN_SYSTEM.md).
+Agent instructions: [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md).
 
 ## Project
 AI-powered English speaking practice platform for Indian learners.
@@ -34,17 +37,36 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 - Task 6: Session persistence with JWT ✅ WORKING
 - Task 7: Account settings and preferences ✅ WORKING
 
-### UI/UX Redesign (Raycast Aesthetic) ✅
-- Design vibe: Raycast style — dark (`bg-neutral-950`), sharp, glowing, premium
-- `shimmer-button.jsx`: Fixed stacking context, dual-layer neon aura (`blur-md opacity-80`), continuous 360° border beam, container queries
-- `background-beams.jsx`: Aceternity UI radial beams and ambient glows
-- `meteors.jsx`: Meteor rain effect on Home page
-- `Login.jsx`: Background beams, ShimmerButton on Sign In and Sign Up tabs
-- `Home.jsx`: Meteors animation, streak, minutes, and level summary cards
-- `ProfileSetup.jsx`: 4-step wizard with `framer-motion` (`AnimatePresence`), glowing segmented progress tracker, localized script tags, ShimmerButton
-- `Quiz.jsx`: Immersive full screen, keycap answer cards (`[A]`, `[B]`, `[C]`, `[D]`), keyboard shortcuts (`A`/`B`/`C`/`D` or `1`/`2`/`3`/`4`), glowing progress HUD, multi-phase AI analysis screen, celebration result screen
-- `Settings.jsx`: Two-column sidebar layout, user profile card, tabbed navigation (`Profile`, `Preferences`, `Commitment`, `Account`), clean dark form inputs, sticky ShimmerButton save bar
-- `AdminDashboard.jsx`: Executive command center with live status, 4 telemetry stat cards (Total Users, DAU, Assessed Fluency, Streaks), real-time search & filter pills, users directory table
+### UI/UX Redesign (Vercel Dashboard Aesthetic) ✅
+**Design rules live in `speakup-frontend/DESIGN_SYSTEM.md` — read it before any UI work.**
+Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
+
+- Design vibe: Vercel dashboard — pure black `#000000`, flat, monochrome, generous
+  whitespace, 1px `#222222` borders instead of shadows. Linear.app and the Raycast
+  *website* are secondary references. The earlier glowing/neon Raycast-terminal look was
+  removed in this redesign
+- `index.css`: all design tokens in a Tailwind v4 `@theme` block — `canvas`, `surface`,
+  `surface-2`, `line`, `line-strong`, `fg`, `muted`, `faint`, `success`, `danger`,
+  `radius-card` 8px, `radius-control` 6px. Inter via `--font-sans`. No keyframes
+- `components/Navbar.jsx`: new shared `h-14` sticky nav — links, avatar dropdown
+  (`role="menu"`, outside-click + Escape dismissal), mobile hamburger, admin link when
+  `user.role === 'admin'`
+- `Login.jsx`: centred `max-w-[400px]` card, segmented Sign in / Sign up tabs, white
+  primary button, outlined Google button. All Firebase auth logic unchanged
+- `Home.jsx`: time-based greeting, four stat cards wired to real Redux fields, quick
+  actions row with a disabled "Start Practicing" + "Coming soon"
+- `Quiz.jsx`: framer-motion removed. Plain `Question N of M` header, 0.5px progress bar,
+  flat keycap options, `A`–`D` / `1`–`4` keyboard shortcuts kept, single-spinner loading
+  screen, result screen with score card and breakdown bars
+- `Settings.jsx`: `240px` sidebar with white-left-border active tabs, four sections
+  (Profile, Preferences, Commitment, Account). `PUT /api/user/profile` payload unchanged
+- `AdminDashboard.jsx`: four stat cards from `/api/admin/analytics`, search + filter
+  toggles, users table with `divide-y divide-line` rows and an empty state
+- `ProfileSetup.jsx`: **not yet redesigned** — still uses framer-motion, ShimmerButton
+  and BackgroundBeams. Sole reason `components/ui/*` and framer-motion still exist
+- Verified: `npm run lint` clean, `npm run build` passing, tokens confirmed present in
+  `dist/assets/*.css`
+
 
 ### Backend Files
 - pom.xml
@@ -71,20 +93,23 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 - store/authSlice.js (onboardingCompleted field added)
 - store/index.js
 - api/axiosConfig.js
-- components/ui/background-beams.jsx (Aceternity UI ambient background beams)
-- components/ui/shimmer-button.jsx (glowing animated shimmer button)
-- components/ui/meteors.jsx (meteor rain animation)
-- pages/Login.jsx (BackgroundBeams, ShimmerButton)
+- components/Navbar.jsx (shared sticky nav, avatar dropdown, mobile menu)
+- components/ui/background-beams.jsx (legacy — ProfileSetup.jsx only)
+- components/ui/shimmer-button.jsx (legacy — ProfileSetup.jsx only; keyframes are local
+  to the component via a React 19 hoisted `<style>`, not in index.css)
+- components/ui/meteors.jsx (legacy — unused, kept with the other two)
+- pages/Login.jsx (centred card, segmented tabs, white primary + outlined Google button)
 - pages/Register.jsx
-- pages/ProfileSetup.jsx (4-step wizard, framer-motion, glowing cards)
-- pages/Quiz.jsx (immersive full screen, keycap answer cards, keyboard shortcuts, progress HUD, result screen)
-- pages/Home.jsx (Meteors effect, stats cards, level summary, navigation)
-- pages/Settings.jsx (two-column sidebar layout, tabbed navigation, clean form controls)
-- pages/AdminDashboard.jsx (executive stat cards, search & filter controls, users table)
+- pages/ProfileSetup.jsx (4-step wizard, framer-motion — NOT yet redesigned)
+- pages/Quiz.jsx (plain progress bar, flat keycap options, A–D / 1–4 shortcuts, result screen)
+- pages/Home.jsx (greeting, four real stat cards, quick actions)
+- pages/Settings.jsx (240px sidebar, four sections, clean form controls)
+- pages/AdminDashboard.jsx (four analytics stat cards, search + filters, users table)
 - hooks/useQuiz.js
 - App.jsx (routes: /, /profile-setup, /quiz, /home, /settings, /admin + Toaster)
-- index.css (Tailwind v4 @import "tailwindcss", shimmer & meteor keyframes)
+- index.css (Tailwind v4 @import "tailwindcss" + @theme design tokens, no keyframes)
 - main.jsx
+- DESIGN_SYSTEM.md (**the UI source of truth — read before any design work**)
 
 ## Next Task
 Module 2 — AI Practice / Real-time Conversation
@@ -100,10 +125,16 @@ cd ~/Projects/speakup-english/speakup-frontend
 npm run dev
 
 ## Important Notes
+- **UI work: read `speakup-frontend/DESIGN_SYSTEM.md` first — it is the single source of
+  truth. Root `CLAUDE.md` (Claude Code) and `AGENTS.md` (other agents) enforce this.**
 - Java 25 installed (not 21, works fine)
 - Tailwind v4 — use @import "tailwindcss" in index.css (NO tailwind config file)
+- Tailwind v4 silently drops utilities whose `@theme` token is missing — verify against
+  `dist/assets/*.css` after any token change
 - Plain JavaScript only (NO TypeScript)
 - Frontend libraries installed: framer-motion, clsx, tailwind-merge, react-hot-toast
+  (framer-motion is legacy — ProfileSetup.jsx only, do not add new usages)
+- Frontend needs `VITE_FIREBASE_*` in `.env` or `getAuth()` throws and the page is blank
 - gcloud auth application-default login already done
 - No firebase-service-account.json — using ADC
 - start-backend.sh exists in project root
