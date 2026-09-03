@@ -46,11 +46,11 @@ export default function useQuiz() {
             return
           }
         } catch (err) {
-          // 404 means quiz not completed yet — expected, continue
-          if (err.response?.status !== 404) {
-            throw err
-          }
-        }
+  // 404 or 401 means quiz not completed yet — expected, continue
+  if (err.response?.status !== 404 && err.response?.status !== 401) {
+    throw err
+  }
+}
 
         // 2. Fetch quiz questions
         const questionsRes = await api.get('/api/quiz/questions')
