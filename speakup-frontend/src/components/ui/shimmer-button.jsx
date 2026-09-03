@@ -57,6 +57,17 @@ export const ShimmerButton = React.forwardRef(
 
         {/* Inner backdrop fill */}
         <div className="absolute [inset:var(--cut)] -z-10 [border-radius:calc(var(--radius)-var(--cut))] [background:var(--bg)]" />
+
+        {/* Keyframes are scoped to this component (hoisted + deduped by React) */}
+        <style href="shimmer-button-keyframes" precedence="default">{`
+          @keyframes shimmer-slide { to { transform: translate(calc(100cqw - 100%), 0); } }
+          @keyframes spin-around {
+            0% { transform: translateZ(0) rotate(0deg); }
+            100% { transform: translateZ(0) rotate(360deg); }
+          }
+          .animate-shimmer-slide { animation: shimmer-slide var(--speed, 3s) ease-in-out infinite alternate; }
+          .animate-spin-around { animation: spin-around var(--speed, 3s) infinite linear; }
+        `}</style>
       </button>
     )
   }

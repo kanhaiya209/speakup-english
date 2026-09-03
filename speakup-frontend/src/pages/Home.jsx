@@ -1,100 +1,87 @@
-import { useSelector, useDispatch } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { logout } from '../store/authSlice'
-import { Meteors } from '../components/ui/meteors'
+import Navbar from '../components/Navbar'
 
-export default function Home() {
-  const { user } = useSelector((state) => state.auth)
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    dispatch(logout())
-    navigate('/', { replace: true })
-  }
-
-  const initials = user?.name
-    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'SU'
-
+function StatCard({ label, value, unit }) {
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <Meteors number={15} />
-      </div>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl animate-pulse" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-lg">
-        <div className="backdrop-blur-xl bg-white/[0.04] border border-white/[0.08] rounded-3xl p-8 sm:p-10 shadow-2xl shadow-black/20">
-
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 mb-4">
-              <span className="text-xl font-bold text-white">{initials}</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 🎉
-            </h1>
-            <p className="text-slate-400 text-sm">Your speaking practice journey starts here.</p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 text-center">
-              <p className="text-2xl font-bold text-white">{user?.streak || 0}</p>
-              <p className="text-xs text-slate-500 mt-1">🔥 Streak</p>
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 text-center">
-              <p className="text-2xl font-bold text-white">{user?.totalMinutesPracticed || 0}</p>
-              <p className="text-xs text-slate-500 mt-1">⏱ Minutes</p>
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 text-center">
-              <p className="text-sm font-bold text-indigo-400 capitalize">{user?.englishLevel || 'N/A'}</p>
-              <p className="text-xs text-slate-500 mt-1">🎯 Level</p>
-            </div>
-          </div>
-
-          <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-slate-400">Daily Goal</p>
-              <p className="text-xs text-indigo-400 font-semibold">0 / {user?.dailyGoalMinutes || 10} min</p>
-            </div>
-            <div className="w-full h-1.5 rounded-full bg-white/[0.06]">
-              <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 w-0 transition-all duration-500" />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-6">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-slate-500">AI Practice coming soon — stay tuned!</span>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <button onClick={() => navigate('/settings')}
-              className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-300 font-semibold text-sm hover:bg-white/[0.08] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
-              ⚙️ Settings
-            </button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')}
-                className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 font-semibold text-sm hover:bg-amber-500/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
-                📊 Admin Dashboard
-              </button>
-            )}
-            <button onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-semibold text-sm hover:bg-red-500/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.06]">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-slate-500">Built for Indian English Learners</span>
-          </div>
-        </div>
-      </div>
+    <div className="rounded-card border border-line bg-surface p-5 transition-colors hover:border-line-strong">
+      <p className="text-sm text-muted">{label}</p>
+      <p className="mt-2 flex items-baseline gap-1.5">
+        <span className="text-2xl font-semibold tracking-tight text-fg capitalize">{value}</span>
+        {unit && <span className="text-sm text-muted">{unit}</span>}
+      </p>
     </div>
   )
 }
+
+export default function Home() {
+  const { user } = useSelector((state) => state.auth)
+  const navigate = useNavigate()
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName = user?.name ? user.name.trim().split(/\s+/)[0] : null
+
+  const outlineButtonClass =
+    'cursor-pointer rounded-control border border-line bg-transparent px-4 py-2 text-sm text-fg transition-colors hover:border-line-strong hover:bg-surface-2'
+
+  return (
+    <div className="min-h-screen bg-canvas">
+      <Navbar />
+
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        {/* Greeting */}
+        <header className="mb-10">
+          <h1 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+            {greeting}{firstName ? `, ${firstName}` : ''}
+          </h1>
+          <p className="mt-2 text-sm text-muted">Here is where your speaking practice stands.</p>
+        </header>
+
+        {/* Stats */}
+        <section className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Streak" value={user?.streak ?? 0} unit="days" />
+          <StatCard label="Practice time" value={user?.totalMinutesPracticed ?? 0} unit="mins" />
+          <StatCard label="Level" value={user?.englishLevel || '—'} />
+          <StatCard label="Daily goal" value={user?.dailyGoalMinutes ?? 0} unit="mins / day" />
+        </section>
+
+        {/* Quick actions */}
+        <section>
+          <div className="mb-4 border-b border-line pb-3">
+            <h2 className="text-sm font-medium text-fg">Quick actions</h2>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="cursor-not-allowed rounded-control bg-white px-4 py-2 text-sm font-medium text-black opacity-40"
+            >
+              Start Practicing
+            </button>
+            <span className="text-xs text-muted">Coming soon</span>
+
+            <div className="hidden h-5 w-px bg-line sm:block" />
+
+            <button type="button" onClick={() => navigate('/settings')} className={outlineButtonClass}>
+              Settings
+            </button>
+
+            {user?.role === 'admin' && (
+              <button type="button" onClick={() => navigate('/admin')} className={outlineButtonClass}>
+                Admin
+              </button>
+            )}
+
+            <button type="button" onClick={() => navigate('/quiz')} className={outlineButtonClass}>
+              Retake Assessment
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+

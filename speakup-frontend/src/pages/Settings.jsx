@@ -4,73 +4,90 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../api/axiosConfig'
 import { setUser, logout } from '../store/authSlice'
-import { BackgroundBeams } from '../components/ui/background-beams'
-import { ShimmerButton } from '../components/ui/shimmer-button'
+import Navbar from '../components/Navbar'
 
-/* ────────────────────────────────────────────
-   Option Data
-   ──────────────────────────────────────────── */
+/* ── Option data (values match the API payload exactly) ── */
 
 const LANGUAGES = [
-  { value: 'Hindi', icon: '🇮🇳', sub: 'हिंदी' },
-  { value: 'Bengali', icon: '🟢', sub: 'বাংলা' },
-  { value: 'Tamil', icon: '🔴', sub: 'தமிழ்' },
-  { value: 'Telugu', icon: '🟡', sub: 'తెలుగు' },
-  { value: 'Marathi', icon: '🟠', sub: 'मराठी' },
-  { value: 'Gujarati', icon: '🟤', sub: 'ગુજરાતી' },
-  { value: 'Kannada', icon: '🟣', sub: 'ಕನ್ನಡ' },
-  { value: 'Punjabi', icon: '🔵', sub: 'ਪੰਜਾਬੀ' },
-  { value: 'Malayalam', icon: '🟢', sub: 'മലയാളം' },
-  { value: 'Other', icon: '🌍', sub: 'Global' },
+  { value: 'Hindi', native: 'हिंदी' },
+  { value: 'Bengali', native: 'বাংলা' },
+  { value: 'Tamil', native: 'தமிழ்' },
+  { value: 'Telugu', native: 'తెలుగు' },
+  { value: 'Marathi', native: 'मराठी' },
+  { value: 'Gujarati', native: 'ગુજરાતી' },
+  { value: 'Kannada', native: 'ಕನ್ನಡ' },
+  { value: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  { value: 'Malayalam', native: 'മലയാളം' },
+  { value: 'Other', native: '' },
 ]
 
 const LEVELS = [
-  { value: 'Beginner', icon: '🌱', badge: 'A1 - A2', desc: 'Basic vocabulary and simple sentence formation' },
-  { value: 'Elementary', icon: '📗', badge: 'A2 - B1', desc: 'Everyday conversations with minor hesitation' },
-  { value: 'Intermediate', icon: '📘', badge: 'B1 - B2', desc: 'Hold fluent discussions and express opinions clearly' },
-  { value: 'Upper Intermediate', icon: '📙', badge: 'B2 - C1', desc: 'High confidence, polishing nuance and professional idioms' },
-  { value: 'Advanced', icon: '🏆', badge: 'C1 - C2', desc: 'Near-native articulation, executive communication' },
+  { value: 'Beginner', cefr: 'A1–A2', desc: 'Basic vocabulary and simple sentences' },
+  { value: 'Elementary', cefr: 'A2–B1', desc: 'Everyday conversation with some hesitation' },
+  { value: 'Intermediate', cefr: 'B1–B2', desc: 'Fluent discussion and clear opinions' },
+  { value: 'Upper Intermediate', cefr: 'B2–C1', desc: 'Confident, working on nuance and idiom' },
+  { value: 'Advanced', cefr: 'C1–C2', desc: 'Near-native articulation' },
 ]
 
 const GOALS = [
-  { value: 'Job Interviews', icon: '💼', desc: 'HR & Technical rounds' },
-  { value: 'Business Communication', icon: '📊', desc: 'Presentations & pitches' },
-  { value: 'Daily Conversation', icon: '💬', desc: 'Casual fluencies' },
-  { value: 'Travel & Tourism', icon: '✈️', desc: 'International journeys' },
-  { value: 'Academic English', icon: '🎓', desc: 'IELTS & universities' },
-  { value: 'Public Speaking', icon: '🎤', desc: 'Stage presence & speeches' },
+  { value: 'Job Interviews', desc: 'HR and technical rounds' },
+  { value: 'Business Communication', desc: 'Presentations and pitches' },
+  { value: 'Daily Conversation', desc: 'Casual fluency' },
+  { value: 'Travel & Tourism', desc: 'Travelling abroad' },
+  { value: 'Academic English', desc: 'IELTS and university' },
+  { value: 'Public Speaking', desc: 'Stage presence and speeches' },
 ]
 
 const DAILY_GOALS = [
-  { value: 10, label: '10 Mins', icon: '🔥', desc: 'Quick session', badge: 'Casual' },
-  { value: 15, label: '15 Mins', icon: '💪', desc: 'Solid habit', badge: 'Popular' },
-  { value: 20, label: '20 Mins', icon: '🚀', desc: 'Power learner', badge: 'Intense' },
-  { value: 30, label: '30 Mins', icon: '🏅', desc: 'Total immersion', badge: 'Pro' },
+  { value: 10, label: '10 mins', desc: 'Quick session' },
+  { value: 15, label: '15 mins', desc: 'Steady habit' },
+  { value: 20, label: '20 mins', desc: 'Power learner' },
+  { value: 30, label: '30 mins', desc: 'Full immersion' },
 ]
 
 const TABS = [
-  { id: 'profile', label: 'Profile Details', icon: '👤' },
-  { id: 'preferences', label: 'Learning & Level', icon: '🎯' },
-  { id: 'goals', label: 'Daily Commitment', icon: '⏱' },
-  { id: 'account', label: 'Account & Session', icon: '🔒' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'preferences', label: 'Learning' },
+  { id: 'goals', label: 'Daily goal' },
+  { id: 'account', label: 'Account' },
 ]
 
-/* ────────────────────────────────────────────
-   Spinner
-   ──────────────────────────────────────────── */
+/* ── Shared styles ── */
+
+const sectionClass = 'rounded-card border border-line bg-surface p-6'
+
+const inputClass =
+  'w-full rounded-control border border-line bg-canvas px-3 py-2.5 text-sm text-fg placeholder:text-faint transition-colors focus:border-line-strong focus:outline-none'
+
+const optionClass = (selected) =>
+  `flex w-full cursor-pointer items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors ${
+    selected
+      ? 'border-line-strong bg-surface-2 text-fg'
+      : 'border-line bg-canvas text-muted hover:border-line-strong hover:text-fg'
+  }`
 
 function Spinner() {
   return (
-    <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
     </svg>
   )
 }
 
-/* ────────────────────────────────────────────
-   Settings Page (Sidebar Layout)
-   ──────────────────────────────────────────── */
+function SelectedDot({ visible }) {
+  if (!visible) return null
+  return <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white" aria-hidden="true" />
+}
+
+function SectionHeading({ title, description }) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-base font-medium text-fg">{title}</h2>
+      <p className="mt-1 text-sm text-muted">{description}</p>
+    </div>
+  )
+}
 
 export default function Settings() {
   const dispatch = useDispatch()
@@ -141,107 +158,38 @@ export default function Settings() {
     : 'SU'
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden font-sans selection:bg-indigo-500/30">
-      {/* ── Background Beams ── */}
-      <BackgroundBeams />
+    <div className="min-h-screen bg-canvas">
+      <Navbar />
 
-      {/* ── Ambient Radial Halos ── */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-20 right-1/4 w-[600px] h-[350px] bg-indigo-600/10 rounded-full blur-[130px]" />
-      </div>
-
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        {/* ── Header Row ── */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/[0.06]">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/home')}
-              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
-              aria-label="Back to home"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Account Settings</h1>
-                <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-[11px] font-mono text-neutral-400">
-                  Preferences
-                </span>
-              </div>
-              <p className="text-neutral-400 text-xs sm:text-sm mt-0.5">
-                Manage your personal information, fluency benchmarks, and practice schedule
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Save in Header on Desktop */}
-          <div className="hidden sm:block">
-            <ShimmerButton
-              id="settings-save-header"
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-5 py-2.5 text-xs font-semibold disabled:opacity-50"
-              background="rgba(79, 70, 229, 1)"
-              borderRadius="10px"
-            >
-              {isSaving ? (
-                <>
-                  <Spinner />
-                  <span>Saving…</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                  <span>Save Changes</span>
-                </>
-              )}
-            </ShimmerButton>
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        {/* Header */}
+        <header className="mb-10">
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">Settings</h1>
+          <p className="mt-2 text-sm text-muted">
+            Manage your profile, learning preferences, and daily practice commitment.
+          </p>
         </header>
 
-        {/* ── Main Layout (Sidebar + Content) ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* ═══════════ LEFT SIDEBAR ═══════════ */}
-          <aside className="lg:col-span-4 space-y-4">
-            {/* User Profile Summary Card */}
-            <div className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-5 shadow-xl">
-              <div className="flex items-center gap-3.5 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-base font-bold shadow-lg shadow-indigo-500/25 shrink-0">
-                  {initials}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr] lg:gap-12">
+          {/* ── Sidebar ── */}
+          <aside>
+            <div className="mb-6 rounded-card border border-line bg-surface p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-canvas text-xs font-medium text-fg">
+                  {user?.photoUrl ? (
+                    <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold text-white truncate">
-                    {user?.name || 'SpeakUp Learner'}
-                  </h3>
-                  <p className="text-xs text-neutral-400 truncate">
-                    {user?.email || '—'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/[0.06]">
-                <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <span className="block text-[10px] font-mono uppercase text-neutral-500">Fluency</span>
-                  <span className="text-xs font-bold text-indigo-400 capitalize">
-                    {user?.englishLevel || 'Evaluating'}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <span className="block text-[10px] font-mono uppercase text-neutral-500">Streak</span>
-                  <span className="text-xs font-bold text-amber-400">
-                    🔥 {user?.streak || 0} Days
-                  </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-fg">{user?.name || 'SpeakUp learner'}</p>
+                  <p className="truncate text-xs text-muted">{user?.email || '—'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Tab Navigation Menu */}
-            <nav className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-2 shadow-xl space-y-1">
+            <nav className="flex flex-col" aria-label="Settings sections">
               {TABS.map((tab) => {
                 const isActive = activeTab === tab.id
                 return (
@@ -249,242 +197,173 @@ export default function Settings() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`cursor-pointer border-l-2 px-3 py-2 text-left text-sm transition-colors ${
                       isActive
-                        ? 'bg-indigo-500/15 text-white border border-indigo-500/30 shadow-sm'
-                        : 'text-neutral-400 hover:text-white hover:bg-white/[0.04]'
+                        ? 'border-l-white text-fg'
+                        : 'border-l-line text-muted hover:border-l-line-strong hover:text-fg'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span>{tab.icon}</span>
-                      <span>{tab.label}</span>
-                    </div>
-                    {isActive && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                    )}
+                    {tab.label}
                   </button>
                 )
               })}
             </nav>
           </aside>
 
-          {/* ═══════════ RIGHT CONTENT PANEL ═══════════ */}
-          <main className="lg:col-span-8 space-y-6">
-            {/* TAB 1: Profile Details */}
+          {/* ── Content ── */}
+          <main className="space-y-6">
+            {/* Profile */}
             {activeTab === 'profile' && (
-              <section className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">Personal Information</h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Your identity across practice sessions and certificates</p>
-                </div>
+              <section className={sectionClass}>
+                <SectionHeading
+                  title="Profile"
+                  description="Your display name and the native language we adapt pronunciation feedback to."
+                />
 
-                {/* Display Name */}
-                <div>
-                  <label htmlFor="settings-name" className="block text-xs font-medium text-neutral-300 mb-2">
-                    Display Name
-                  </label>
-                  <input
-                    id="settings-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full px-4 py-3 rounded-xl bg-neutral-950/80 border border-white/[0.08] text-white text-sm placeholder-neutral-500 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:border-indigo-500/40 transition-colors"
-                  />
-                </div>
-
-                {/* Email (read-only) */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-2">
-                    Registered Email
-                  </label>
-                  <div className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-neutral-950/40 border border-white/[0.04] text-neutral-400 text-sm">
-                    <span className="truncate">{user?.email || '—'}</span>
-                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-mono text-neutral-500 bg-white/[0.04] px-2 py-0.5 rounded">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      Verified
-                    </span>
+                <div className="space-y-6">
+                  <div>
+                    <label htmlFor="settings-name" className="mb-1.5 block text-xs text-muted">
+                      Display name
+                    </label>
+                    <input
+                      id="settings-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your name"
+                      className={inputClass}
+                    />
                   </div>
-                </div>
 
-                {/* Native Language */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-2.5">
-                    Native Language (Phonics Adaptation)
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {LANGUAGES.map((lang) => {
-                      const isSelected = nativeLanguage === lang.value
-                      return (
-                        <button
-                          key={lang.value}
-                          type="button"
-                          onClick={() => setNativeLanguage(lang.value)}
-                          className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-500/15 border-indigo-500/60 text-white ring-1 ring-indigo-500/40 shadow-sm'
-                              : 'bg-neutral-950/50 border-white/[0.06] text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-base">{lang.icon}</span>
-                            <div>
-                              <span className="block text-xs font-semibold">{lang.value}</span>
-                              <span className="block text-[10px] text-neutral-500">{lang.sub}</span>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                          )}
-                        </button>
-                      )
-                    })}
+                  <div>
+                    <span className="mb-1.5 block text-xs text-muted">Email</span>
+                    <div className="flex items-center justify-between rounded-control border border-line bg-canvas px-3 py-2.5">
+                      <span className="truncate text-sm text-muted">{user?.email || '—'}</span>
+                      <span className="ml-3 shrink-0 text-xs text-muted">Read only</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="mb-2.5 block text-xs text-muted">Native language</span>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Native language">
+                      {LANGUAGES.map((lang) => {
+                        const selected = nativeLanguage === lang.value
+                        return (
+                          <button
+                            key={lang.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setNativeLanguage(lang.value)}
+                            className={optionClass(selected)}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm">{lang.value}</span>
+                              {lang.native && (
+                                <span className="block truncate text-xs text-muted">{lang.native}</span>
+                              )}
+                            </span>
+                            <SelectedDot visible={selected} />
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               </section>
             )}
 
-            {/* TAB 2: Learning & Level */}
+            {/* Learning */}
             {activeTab === 'preferences' && (
-              <section className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">Learning Preferences</h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Adjust your current fluency tier and primary practice scenarios</p>
-                </div>
+              <section className={sectionClass}>
+                <SectionHeading
+                  title="Learning"
+                  description="Your current proficiency and what you are mainly practising for."
+                />
 
-                {/* English Level */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-2.5">
-                    English Proficiency Level
-                  </label>
-                  <div className="space-y-2.5">
-                    {LEVELS.map((level) => {
-                      const isSelected = englishLevel === level.value
-                      return (
-                        <button
-                          key={level.value}
-                          type="button"
-                          onClick={() => setEnglishLevel(level.value)}
-                          className={`w-full flex items-center gap-3.5 p-3.5 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-500/15 border-indigo-500/60 ring-1 ring-indigo-500/40'
-                              : 'bg-neutral-950/50 border-white/[0.06] hover:bg-white/[0.04]'
-                          }`}
-                        >
-                          <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-lg shrink-0">
-                            {level.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs sm:text-sm font-semibold ${isSelected ? 'text-white' : 'text-neutral-200'}`}>
-                                {level.value}
+                <div className="space-y-6">
+                  <div>
+                    <span className="mb-2.5 block text-xs text-muted">English level</span>
+                    <div className="space-y-2" role="radiogroup" aria-label="English level">
+                      {LEVELS.map((level) => {
+                        const selected = englishLevel === level.value
+                        return (
+                          <button
+                            key={level.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setEnglishLevel(level.value)}
+                            className={optionClass(selected)}
+                          >
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-2">
+                                <span className="text-sm">{level.value}</span>
+                                <span className="text-xs text-muted">{level.cefr}</span>
                               </span>
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/[0.06] text-neutral-400">
-                                {level.badge}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-neutral-400 mt-0.5 truncate">
-                              {level.desc}
-                            </p>
-                          </div>
-                          {isSelected && (
-                            <div className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                              </svg>
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
+                              <span className="mt-0.5 block truncate text-xs text-muted">{level.desc}</span>
+                            </span>
+                            <SelectedDot visible={selected} />
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
 
-                {/* Primary Learning Goal */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-2.5">
-                    Primary Practice Objective
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {GOALS.map((goal) => {
-                      const isSelected = learningGoal === goal.value
-                      return (
-                        <button
-                          key={goal.value}
-                          type="button"
-                          onClick={() => setLearningGoal(goal.value)}
-                          className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-500/15 border-indigo-500/60 ring-1 ring-indigo-500/40 text-white'
-                              : 'bg-neutral-950/50 border-white/[0.06] text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
-                          }`}
-                        >
-                          <span className="text-xl">{goal.icon}</span>
-                          <div className="min-w-0 flex-1">
-                            <span className="block text-xs font-semibold truncate">{goal.value}</span>
-                            <span className="block text-[10px] text-neutral-500 truncate">{goal.desc}</span>
-                          </div>
-                          {isSelected && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                          )}
-                        </button>
-                      )
-                    })}
+                  <div>
+                    <span className="mb-2.5 block text-xs text-muted">Primary goal</span>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Primary goal">
+                      {GOALS.map((goal) => {
+                        const selected = learningGoal === goal.value
+                        return (
+                          <button
+                            key={goal.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setLearningGoal(goal.value)}
+                            className={optionClass(selected)}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm">{goal.value}</span>
+                              <span className="block truncate text-xs text-muted">{goal.desc}</span>
+                            </span>
+                            <SelectedDot visible={selected} />
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               </section>
             )}
 
-            {/* TAB 3: Daily Commitment */}
+            {/* Daily goal */}
             {activeTab === 'goals' && (
-              <section className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">Daily Practice Commitment</h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Micro-learning habit schedule for optimal speaking retention</p>
-                </div>
+              <section className={sectionClass}>
+                <SectionHeading
+                  title="Daily goal"
+                  description="How many minutes you want to practise speaking each day."
+                />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Daily goal">
                   {DAILY_GOALS.map((goal) => {
-                    const isSelected = dailyGoalMinutes === goal.value
+                    const selected = dailyGoalMinutes === goal.value
                     return (
                       <button
                         key={goal.value}
                         type="button"
+                        role="radio"
+                        aria-checked={selected}
                         onClick={() => setDailyGoalMinutes(goal.value)}
-                        className={`p-4 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center justify-between ${
-                          isSelected
-                            ? 'bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
-                            : 'bg-neutral-950/50 border-white/[0.06] hover:bg-white/[0.04]'
-                        }`}
+                        className={optionClass(selected)}
                       >
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center text-xl">
-                            {goal.icon}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-neutral-200'}`}>
-                                {goal.label}
-                              </span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-neutral-400">
-                                {goal.badge}
-                              </span>
-                            </div>
-                            <span className="text-xs text-neutral-500">
-                              {goal.desc}
-                            </span>
-                          </div>
-                        </div>
-
-                        {isSelected && (
-                          <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-                            <svg className="w-3 h-3 text-neutral-950" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                            </svg>
-                          </div>
-                        )}
+                        <span className="min-w-0">
+                          <span className="block text-sm">{goal.label}</span>
+                          <span className="block truncate text-xs text-muted">{goal.desc}</span>
+                        </span>
+                        <SelectedDot visible={selected} />
                       </button>
                     )
                   })}
@@ -492,80 +371,64 @@ export default function Settings() {
               </section>
             )}
 
-            {/* TAB 4: Account & Danger Zone */}
+            {/* Account */}
             {activeTab === 'account' && (
-              <section className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">Account & Session</h2>
-                  <p className="text-xs text-neutral-400 mt-0.5">Manage session access and authentication controls</p>
-                </div>
+              <section className={sectionClass}>
+                <SectionHeading
+                  title="Account"
+                  description="Your access level and session on this browser."
+                />
 
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
-                  <div>
-                    <span className="block text-xs font-semibold text-white">Platform Role</span>
-                    <span className="block text-[11px] text-neutral-400 mt-0.5">Assigned account authorization level</span>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-mono text-xs font-semibold">
-                    {user?.role === 'admin' ? '👑 Admin' : '📚 Learner'}
-                  </span>
-                </div>
-
-                {/* Danger Card */}
-                <div className="p-5 rounded-xl bg-red-500/[0.04] border border-red-500/20 space-y-3">
-                  <div>
-                    <span className="block text-xs font-bold text-red-400 uppercase tracking-wide">Danger Zone</span>
-                    <span className="block text-xs text-neutral-400 mt-1">
-                      Logging out terminates your current active session token on this browser.
+                <div className="divide-y divide-line border-y border-line">
+                  <div className="flex items-center justify-between gap-4 py-3.5">
+                    <div>
+                      <p className="text-sm text-fg">Role</p>
+                      <p className="mt-0.5 text-xs text-muted">Account authorization level</p>
+                    </div>
+                    <span className="rounded-control border border-line bg-canvas px-2.5 py-1 text-xs text-muted capitalize">
+                      {user?.role || 'learner'}
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    id="settings-logout"
-                    onClick={handleLogout}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-semibold text-xs hover:bg-red-500/20 hover:border-red-500/40 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-                    </svg>
-                    <span>Sign Out of Account</span>
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                    <div>
+                      <p className="text-sm text-fg">Sign out</p>
+                      <p className="mt-0.5 text-xs text-muted">Ends your session on this browser</p>
+                    </div>
+                    <button
+                      type="button"
+                      id="settings-logout"
+                      onClick={handleLogout}
+                      className="cursor-pointer rounded-control border border-danger/30 bg-transparent px-3.5 py-2 text-sm text-danger transition-colors hover:border-danger/60 hover:bg-danger/10"
+                    >
+                      Log out
+                    </button>
+                  </div>
                 </div>
               </section>
             )}
 
-            {/* Bottom Save Action Bar */}
-            <div className="backdrop-blur-xl bg-neutral-900/60 border border-white/[0.08] rounded-2xl p-4 flex items-center justify-between shadow-xl">
-              <span className="text-xs text-neutral-400 hidden sm:inline">
-                Preferences are synced automatically across your AI sessions
-              </span>
-              <ShimmerButton
-                id="settings-save"
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full sm:w-auto px-6 py-3 text-xs font-semibold disabled:opacity-50"
-                background="rgba(79, 70, 229, 1)"
-                borderRadius="12px"
-              >
-                {isSaving ? (
-                  <>
-                    <Spinner />
-                    <span>Saving Changes…</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                    </svg>
-                    <span>Save All Changes</span>
-                  </>
-                )}
-              </ShimmerButton>
-            </div>
+            {/* Save bar */}
+            {activeTab !== 'account' && (
+              <div className="flex items-center justify-end gap-4 border-t border-line pt-6">
+                <span className="hidden text-xs text-muted sm:inline">
+                  Changes apply to every future practice session.
+                </span>
+                <button
+                  type="button"
+                  id="settings-save"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-control bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSaving ? <><Spinner /><span>Saving…</span></> : 'Save changes'}
+                </button>
+              </div>
+            )}
           </main>
         </div>
       </div>
     </div>
   )
 }
+

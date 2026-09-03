@@ -1,58 +1,97 @@
 @import "tailwindcss";
 
-/* Base reset for the app */
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ============================================================
+   SpeakUp — design tokens
+   Vercel-style dark minimal. Tailwind v4: theme lives here,
+   there is no tailwind.config.js.
+
+   >>> RULES: ../DESIGN_SYSTEM.md — read it before changing this
+   file or any component. Adding a token is a 3-step process
+   documented in §2; run `npm run verify` afterwards.
+
+   Generated utilities:
+     bg-canvas / bg-surface / bg-surface-2
+     border-line / border-line-strong / divide-line
+     text-fg / text-muted / text-faint
+     text-success / text-danger
+     rounded-card (8px) / rounded-control (6px)
+   ============================================================ */
+
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Surfaces */
+  --color-canvas: #000000;
+  --color-surface: #111111;
+  --color-surface-2: #161616;
+
+  /* Borders */
+  --color-line: #222222;
+  --color-line-strong: #444444;
+
+  /* Text */
+  --color-fg: #ffffff;
+  --color-muted: #888888;
+  --color-faint: #555555;
+
+  /* Status — dots and destructive actions only */
+  --color-success: #00ff88;
+  --color-danger: #ff4444;
+
+  /* Radii */
+  --radius-card: 8px;
+  --radius-control: 6px;
 }
 
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background-color: #020617;
-  color: #f8fafc;
-}
-
-@keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+@layer base {
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
-}
 
-@keyframes spin-around {
-  0% { transform: translateZ(0) rotate(0deg); }
-  100% { transform: translateZ(0) rotate(360deg); }
-}
-
-.animate-shimmer-slide {
-  animation: shimmer-slide var(--speed, 3s) ease-in-out infinite alternate;
-}
-
-.animate-spin-around {
-  animation: spin-around var(--speed, 3s) infinite linear;
-}
-
-@keyframes meteor {
-  0% {
-    transform: rotate(var(--angle)) translateX(0);
-    opacity: 1;
+  html {
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(var(--angle)) translateX(-500px);
-    opacity: 0;
-  }
-}
 
-.animate-meteor {
-  animation: meteor 5s linear infinite;
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+  }
+
+  ::selection {
+    background-color: rgba(255, 255, 255, 0.16);
+    color: var(--color-fg);
+  }
+
+  /* Thin, unobtrusive scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #333333 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #2a2a2a;
+    border-radius: 9999px;
+    border: 3px solid #000000;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #3a3a3a;
+  }
 }

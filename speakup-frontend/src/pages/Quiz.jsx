@@ -1,320 +1,157 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import { setUser, setOnboardingCompleted } from '../store/authSlice'
 import useQuiz from '../hooks/useQuiz'
-import { BackgroundBeams } from '../components/ui/background-beams'
-import { ShimmerButton } from '../components/ui/shimmer-button'
 
-/* ────────────────────────────────────────────
-   Category Configuration
-   ──────────────────────────────────────────── */
+/* ── Static copy for question categories and assessed levels ── */
 
-const CATEGORY_CONFIG = {
-  grammar: {
-    icon: '📝',
-    label: 'Grammar',
-    gradient: 'from-blue-500 to-indigo-500',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/30',
-    text: 'text-blue-400',
-  },
-  vocabulary: {
-    icon: '📚',
-    label: 'Vocabulary',
-    gradient: 'from-amber-500 to-orange-500',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/30',
-    text: 'text-amber-400',
-  },
-  comprehension: {
-    icon: '🧠',
-    label: 'Comprehension',
-    gradient: 'from-emerald-500 to-teal-500',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/30',
-    text: 'text-emerald-400',
-  },
+const CATEGORY_LABELS = {
+  grammar: 'Grammar',
+  vocabulary: 'Vocabulary',
+  comprehension: 'Comprehension',
 }
-
-/* ────────────────────────────────────────────
-   Level Configuration
-   ──────────────────────────────────────────── */
 
 const LEVEL_CONFIG = {
   beginner: {
-    icon: '🌱',
     label: 'Beginner',
-    cefr: 'CEFR A1 - A2',
-    gradient: 'from-emerald-500 to-teal-500',
-    shadow: 'shadow-emerald-500/30',
-    description: 'Great starting point! We will focus on building core vocabulary, everyday sentences, and confidence.',
+    cefr: 'CEFR A1–A2',
+    description: 'We will focus on core vocabulary, everyday sentences, and speaking confidence.',
   },
   intermediate: {
-    icon: '📘',
     label: 'Intermediate',
-    cefr: 'CEFR B1 - B2',
-    gradient: 'from-indigo-500 to-violet-500',
-    shadow: 'shadow-indigo-500/30',
-    description: 'Solid foundation! We will sharpen your conversation flow, spontaneous speaking, and professional idioms.',
+    cefr: 'CEFR B1–B2',
+    description: 'We will sharpen conversation flow, spontaneous speaking, and professional idiom.',
   },
   advanced: {
-    icon: '🏆',
     label: 'Advanced',
-    cefr: 'CEFR C1 - C2',
-    gradient: 'from-amber-500 to-orange-500',
-    shadow: 'shadow-amber-500/30',
-    description: 'Exceptional articulation! We will polish executive communication, complex arguments, and native nuance.',
+    cefr: 'CEFR C1–C2',
+    description: 'We will polish executive communication, complex arguments, and native nuance.',
   },
 }
 
-/* ────────────────────────────────────────────
-   Loading / Analyzing Screen
-   ──────────────────────────────────────────── */
+/* ── Shared styles ── */
 
-function AnalyzingScreen({ message = 'Analyzing your English responses…' }) {
-  const [analysisStep, setAnalysisStep] = useState(0)
-  const analysisSteps = [
-    'Evaluating syntactic accuracy…',
-    'Benchmarking vocabulary breadth…',
-    'Assessing comprehension depth…',
-    'Calibrating CEFR fluency tier…',
-  ]
+const cardClass = 'rounded-card border border-line bg-surface'
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAnalysisStep((prev) => (prev + 1) % analysisSteps.length)
-    }, 900)
-    return () => clearInterval(interval)
-  }, [analysisSteps.length])
+const primaryButtonClass =
+  'flex w-full cursor-pointer items-center justify-center gap-2 rounded-control bg-white px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90'
 
+const outlineButtonClass =
+  'flex w-full cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-transparent px-4 py-2.5 text-sm text-fg transition-colors hover:border-line-strong hover:bg-surface-2'
+
+function Spinner({ className = 'h-5 w-5' }) {
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-      <BackgroundBeams />
+    <svg className={`animate-spin ${className}`} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
+  )
+}
 
-      <div className="relative z-10 flex flex-col items-center text-center max-w-md">
-        {/* Animated Glowing Radar Pulse */}
-        <div className="relative mb-8">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 p-1 animate-spin [animation-duration:4s]">
-            <div className="w-full h-full rounded-full bg-neutral-950 flex items-center justify-center">
-              <span className="text-3xl">✨</span>
-            </div>
-          </div>
-          <div className="absolute inset-0 rounded-full bg-indigo-500/30 blur-xl animate-pulse" />
-        </div>
+/* ── Loading ── */
 
-        <h2 className="text-xl font-bold text-white tracking-tight mb-2">
-          {message}
-        </h2>
-        <p className="text-sm text-indigo-400 font-mono tracking-wide h-6 transition-all duration-300">
-          {analysisSteps[analysisStep]}
-        </p>
-
-        <div className="mt-8 w-48 h-1 rounded-full bg-white/[0.08] overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 w-full animate-pulse" />
-        </div>
+function LoadingScreen({ message = 'Loading…' }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
+      <div className="flex flex-col items-center gap-4">
+        <Spinner className="h-5 w-5 text-muted" />
+        <p className="text-sm text-muted">{message}</p>
       </div>
     </div>
   )
 }
 
-/* ────────────────────────────────────────────
-   Error Screen
-   ──────────────────────────────────────────── */
+/* ── Error ── */
 
 function ErrorScreen({ message, onRetry }) {
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6 relative overflow-hidden font-sans">
-      <BackgroundBeams />
-
-      <div className="relative z-10 w-full max-w-md">
-        <div className="backdrop-blur-2xl bg-neutral-900/70 border border-white/[0.08] rounded-3xl p-8 shadow-2xl text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 mb-5">
-            <svg className="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
-          <p className="text-neutral-400 text-sm mb-6 leading-relaxed">{message}</p>
-          {onRetry && (
-            <ShimmerButton
-              onClick={onRetry}
-              className="w-full py-3 text-sm"
-              background="rgba(79, 70, 229, 1)"
-            >
-              Try Again
-            </ShimmerButton>
-          )}
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-12">
+      <div className={`w-full max-w-[400px] ${cardClass} p-6 sm:p-8`}>
+        <h2 className="text-base font-medium text-fg">Something went wrong</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{message}</p>
+        {onRetry && (
+          <button type="button" onClick={onRetry} className={`mt-6 ${outlineButtonClass}`}>
+            Try again
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
-/* ────────────────────────────────────────────
-   Result Screen
-   ──────────────────────────────────────────── */
+/* ── Result ── */
 
 function ResultScreen({ result, onContinue }) {
-  const levelConfig = LEVEL_CONFIG[result.assessedLevel] || LEVEL_CONFIG.beginner
+  const level = LEVEL_CONFIG[result.assessedLevel] || LEVEL_CONFIG.beginner
+  const categories = Object.entries(result.categoryScores || {})
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4 sm:p-8 relative overflow-hidden font-sans">
-      <BackgroundBeams />
+    <div className="min-h-screen bg-canvas px-4 py-12 sm:py-16">
+      <div className="mx-auto w-full max-w-2xl">
+        <header className="mb-8">
+          <p className="text-sm text-muted">Assessment complete</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg">Your English profile</h1>
+          <p className="mt-2 text-sm text-muted">
+            Your learning path is now tuned to the level below.
+          </p>
+        </header>
 
-      {/* Ambient background halos */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-600/10 rounded-full blur-[130px]" />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-2xl"
-      >
-        <div className="backdrop-blur-2xl bg-neutral-900/75 border border-white/[0.08] rounded-3xl p-6 sm:p-10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] relative overflow-hidden">
-          {/* Subtle Top Accent */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent pointer-events-none" />
-
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Assessment Complete
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">
-              Your English Fluency Profile
-            </h1>
-            <p className="text-neutral-400 text-sm">
-              Tailored learning path generated from your answers
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className={`${cardClass} flex flex-col justify-center p-5`}>
+            <p className="text-sm text-muted">Score</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-fg">{result.score}%</p>
+            <p className="mt-1 text-xs text-muted">
+              {result.correctAnswers} of {result.totalQuestions} correct
             </p>
           </div>
 
-          {/* Hero Level Card & Score Ring */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            {/* Score Ring */}
-            <div className="sm:col-span-1 flex flex-col items-center justify-center p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-              <div className="relative w-28 h-28">
-                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 128 128">
-                  <circle
-                    cx="64" cy="64" r="54"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.06)"
-                    strokeWidth="8"
-                  />
-                  <circle
-                    cx="64" cy="64" r="54"
-                    fill="none"
-                    stroke="url(#resultScoreGradient)"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${result.score * 3.39} ${339 - result.score * 3.39}`}
-                    className="transition-all duration-1000 ease-out"
-                  />
-                  <defs>
-                    <linearGradient id="resultScoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="100%" stopColor="#a855f7" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-white tracking-tight">{result.score}%</span>
-                  <span className="text-[10px] text-neutral-400 font-mono">Accuracy</span>
-                </div>
+          <div className={`${cardClass} p-5 sm:col-span-2`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted">Assessed level</p>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-fg">{level.label}</p>
               </div>
-              <span className="text-xs text-neutral-400 mt-2 font-medium">
-                {result.correctAnswers} of {result.totalQuestions} Correct
+              <span className="shrink-0 rounded-control border border-line bg-canvas px-2 py-0.5 text-xs text-muted">
+                {level.cefr}
               </span>
             </div>
-
-            {/* Level Tier Hero */}
-            <div className="sm:col-span-2 p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-white/[0.02] to-transparent border border-indigo-500/20 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono font-semibold uppercase text-indigo-400 tracking-wider">
-                    Assessed Level
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-white/[0.06] text-neutral-300">
-                    {levelConfig.cefr}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-3xl">{levelConfig.icon}</span>
-                  <h3 className="text-xl font-bold text-white tracking-tight">
-                    {levelConfig.label} Speaker
-                  </h3>
-                </div>
-                <p className="text-neutral-400 text-xs sm:text-sm leading-relaxed">
-                  {levelConfig.description}
-                </p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-                <span className="text-[11px] text-neutral-400">
-                  AI tutor tuned to your fluency level
-                </span>
-              </div>
-            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted">{level.description}</p>
           </div>
-
-          {/* Category Breakdown */}
-          <div className="mb-8">
-            <h3 className="text-xs font-mono font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-              Performance by Domain
-            </h3>
-            <div className="space-y-3">
-              {Object.entries(result.categoryScores || {}).map(([category, score]) => {
-                const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.grammar
-                return (
-                  <div key={category} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] flex items-center gap-4">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0 ${config.bg} ${config.border} border`}>
-                      {config.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold text-neutral-200">{config.label}</span>
-                        <span className={`text-xs font-mono font-bold ${config.text}`}>{score}%</span>
-                      </div>
-                      <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                        <div
-                          className={`h-full rounded-full bg-gradient-to-r ${config.gradient} transition-all duration-1000 ease-out`}
-                          style={{ width: `${score}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <ShimmerButton
-            id="quiz-start-journey"
-            type="button"
-            onClick={onContinue}
-            className="w-full py-3.5 text-sm"
-            background="rgba(79, 70, 229, 1)"
-            borderRadius="14px"
-          >
-            <span className="font-semibold">Start Speaking Journey</span>
-            <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-          </ShimmerButton>
         </div>
-      </motion.div>
+
+        {categories.length > 0 && (
+          <section className={`mt-4 ${cardClass} p-5`}>
+            <h2 className="text-sm font-medium text-fg">Breakdown by category</h2>
+            <div className="mt-5 space-y-4">
+              {categories.map(([category, score]) => (
+                <div key={category}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm text-muted capitalize">
+                      {CATEGORY_LABELS[category] || category}
+                    </span>
+                    <span className="text-sm text-fg">{score}%</span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-line">
+                    <div className="h-full rounded-full bg-white" style={{ width: `${score}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="mt-8">
+          <button type="button" id="quiz-start-journey" onClick={onContinue} className={primaryButtonClass}>
+            Start speaking journey
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
-/* ────────────────────────────────────────────
-   Quiz Page (Immersive Full Screen)
-   ──────────────────────────────────────────── */
+/* ── Quiz page ── */
 
 export default function Quiz() {
   const dispatch = useDispatch()
@@ -424,7 +261,7 @@ export default function Quiz() {
 
   /* ── Status views ── */
   if (loading) {
-    return <AnalyzingScreen message="Preparing English diagnostic test…" />
+    return <LoadingScreen message="Preparing your assessment…" />
   }
 
   if (error && !result) {
@@ -432,7 +269,7 @@ export default function Quiz() {
   }
 
   if (submitting) {
-    return <AnalyzingScreen message="Analyzing fluency and linguistic reflex…" />
+    return <LoadingScreen message="Scoring your answers…" />
   }
 
   if (result && !alreadyCompleted) {
@@ -440,162 +277,109 @@ export default function Quiz() {
   }
 
   if (!currentQuestion) {
-    return <AnalyzingScreen />
+    return <LoadingScreen />
   }
 
   const progressPercent = ((currentIndex + 1) / totalQuestions) * 100
-  const categoryConfig = CATEGORY_CONFIG[currentQuestion.category] || CATEGORY_CONFIG.grammar
+  const categoryLabel = CATEGORY_LABELS[currentQuestion.category] || currentQuestion.category
   const selectedAnswer = answers[String(currentQuestion.id)]
-  const formattedIndex = String(currentIndex + 1).padStart(2, '0')
-  const formattedTotal = String(totalQuestions).padStart(2, '0')
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden font-sans selection:bg-indigo-500/30">
-      {/* ── Background Beams ── */}
-      <BackgroundBeams />
-
-      {/* ── Ambient Radial Glows ── */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600/10 rounded-full blur-[140px]" />
-      </div>
-
-      {/* ── Top Header & Progress HUD ── */}
-      <header className="relative z-10 w-full max-w-4xl mx-auto flex items-center justify-between py-2">
-        {/* Brand Badge */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shadow-md shadow-indigo-500/20">
-            SU
-          </div>
-          <div>
-            <span className="text-sm font-bold text-white tracking-tight">SpeakUp</span>
-            <span className="hidden sm:inline-block ml-2 text-xs font-mono text-neutral-500">
-              Fluency Assessment
+    <div className="flex min-h-screen flex-col bg-canvas">
+      {/* Header */}
+      <header className="border-b border-line">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-4 px-4 sm:px-6">
+          <span className="text-[15px] font-semibold tracking-tight text-fg">SpeakUp</span>
+          <div className="flex items-center gap-3">
+            {categoryLabel && (
+              <span className="hidden rounded-control border border-line bg-surface px-2 py-0.5 text-xs text-muted capitalize sm:inline-block">
+                {categoryLabel}
+              </span>
+            )}
+            <span className="text-xs text-muted">
+              Question {currentIndex + 1} of {totalQuestions}
             </span>
           </div>
         </div>
 
-        {/* Category Pill */}
-        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${categoryConfig.bg} ${categoryConfig.border} border ${categoryConfig.text}`}>
-          <span>{categoryConfig.icon}</span>
-          <span className="font-semibold">{categoryConfig.label}</span>
-        </div>
-
-        {/* Question Counter */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <span className="font-bold text-indigo-400">{formattedIndex}</span>
-          <span className="text-neutral-600">/</span>
-          <span className="text-neutral-500">{formattedTotal}</span>
-        </div>
-      </header>
-
-      {/* ── Central Progress Bar ── */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto my-3">
-        <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+        {/* Progress */}
+        <div className="h-0.5 w-full bg-line">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 transition-all duration-400 ease-out"
+            className="h-full bg-white transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-      </div>
+      </header>
 
-      {/* ── Main Stage (Distraction-Free) ── */}
-      <main className="relative z-10 w-full max-w-3xl mx-auto my-auto py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQuestion.id}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="w-full"
+      {/* Question */}
+      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center px-4 py-10 sm:px-6 sm:py-14">
+        <div className={`w-full ${cardClass} p-6 sm:p-8`}>
+          <h1 className="text-lg leading-snug font-medium text-fg sm:text-xl">
+            {currentQuestion.question}
+          </h1>
+
+          <div
+            className="mt-6 space-y-2"
+            role="radiogroup"
+            aria-label={`Question ${currentIndex + 1} of ${totalQuestions}`}
           >
-            {/* Question prompt badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-neutral-400 text-xs font-mono mb-4">
-              <span>Question {currentIndex + 1}</span>
-            </div>
+            {currentQuestion.options.map((option, optIdx) => {
+              const isSelected = selectedAnswer === option
+              const optionLetter = String.fromCharCode(65 + optIdx)
+              const isDimmed = !!selectedAnswer && !isSelected
 
-            {/* Question Text */}
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug mb-8 text-pretty">
-              {currentQuestion.question}
-            </h2>
-
-            {/* Answer Cards */}
-            <div className="space-y-3" role="radiogroup" aria-label={`Question ${currentIndex + 1}`}>
-              {currentQuestion.options.map((option, optIdx) => {
-                const isSelected = selectedAnswer === option
-                const optionLetter = String.fromCharCode(65 + optIdx) // A, B, C, D
-
-                return (
-                  <button
-                    key={`${currentQuestion.id}-${optIdx}`}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    id={`quiz-option-${currentQuestion.id}-${optIdx}`}
-                    onClick={() => {
-                      if (!selectedAnswer) {
-                        handleSelectAnswer(currentQuestion.id, option)
-                      }
-                    }}
-                    disabled={!!selectedAnswer}
-                    className={`group w-full flex items-center justify-between p-4 sm:p-4.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-                      isSelected
-                        ? 'bg-indigo-500/20 border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.3)] ring-1 ring-indigo-500/60 scale-[1.01]'
-                        : selectedAnswer
-                        ? 'bg-white/[0.02] border-white/[0.04] opacity-40 cursor-not-allowed'
-                        : 'bg-neutral-900/60 border-white/[0.08] hover:bg-white/[0.05] hover:border-indigo-500/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.12)]'
+              return (
+                <button
+                  key={`${currentQuestion.id}-${optIdx}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  id={`quiz-option-${currentQuestion.id}-${optIdx}`}
+                  onClick={() => {
+                    if (!selectedAnswer) {
+                      handleSelectAnswer(currentQuestion.id, option)
+                    }
+                  }}
+                  disabled={!!selectedAnswer}
+                  className={`flex w-full items-center gap-3.5 rounded-control border px-3.5 py-3 text-left transition-colors ${
+                    isSelected
+                      ? 'border-line-strong bg-surface-2 text-fg'
+                      : isDimmed
+                        ? 'cursor-not-allowed border-line bg-canvas text-muted opacity-40'
+                        : 'cursor-pointer border-line bg-canvas text-muted hover:border-line-strong hover:text-fg'
+                  }`}
+                >
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-control border text-xs ${
+                      isSelected ? 'border-line-strong bg-canvas text-fg' : 'border-line text-muted'
                     }`}
+                    aria-hidden="true"
                   >
-                    <div className="flex items-center gap-4 min-w-0">
-                      {/* Keyboard Keycap Letter */}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-sm shrink-0 transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30'
-                          : 'bg-white/[0.06] border border-white/[0.10] text-neutral-300 group-hover:text-white group-hover:border-white/[0.2]'
-                      }`}>
-                        {optionLetter}
-                      </div>
-
-                      {/* Option Text */}
-                      <span className={`text-sm sm:text-base font-medium leading-relaxed transition-colors ${
-                        isSelected ? 'text-white font-semibold' : 'text-neutral-200 group-hover:text-white'
-                      }`}>
-                        {option}
-                      </span>
-                    </div>
-
-                    {/* Selection Checkmark */}
-                    <div className="ml-4 shrink-0">
-                      {isSelected ? (
-                        <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center shadow-md shadow-indigo-500/30">
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                          </svg>
-                        </div>
-                      ) : (
-                        <div className="w-5 h-5 rounded-full border border-white/[0.15] group-hover:border-white/[0.3] transition-colors" />
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+                    {optionLetter}
+                  </span>
+                  <span className="text-sm leading-relaxed">{option}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </main>
 
-      {/* ── Footer Hints ── */}
-      <footer className="relative z-10 w-full max-w-4xl mx-auto py-3 flex items-center justify-between text-xs text-neutral-500">
-        <div className="hidden sm:flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] font-mono text-[10px] text-neutral-400">A</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] font-mono text-[10px] text-neutral-400">B</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] font-mono text-[10px] text-neutral-400">C</kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] font-mono text-[10px] text-neutral-400">D</kbd>
-          <span className="ml-1">Press keys to answer instantly</span>
-        </div>
-        <div className="flex items-center gap-2 mx-auto sm:mx-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-          <span>Automatic progression upon selection</span>
+      {/* Footer hint */}
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+          <div className="flex items-center gap-1.5">
+            {['A', 'B', 'C', 'D'].map((key) => (
+              <kbd
+                key={key}
+                className="rounded-control border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted"
+              >
+                {key}
+              </kbd>
+            ))}
+            <span className="ml-1.5 text-xs text-muted">Press a key to answer</span>
+          </div>
+          <span className="text-xs text-muted">Advances automatically</span>
         </div>
       </footer>
     </div>
