@@ -5,6 +5,7 @@ const initialState = {
   token: localStorage.getItem('speakup_token') || null,
   loading: false,
   error: null,
+  onboardingCompleted: false,
 };
 
 const authSlice = createSlice({
@@ -29,15 +30,19 @@ const authSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     },
+    setOnboardingCompleted: (state, action) => {
+      state.onboardingCompleted = action.payload;
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.loading = false;
       state.error = null;
+      state.onboardingCompleted = false;
       localStorage.removeItem('speakup_token');
     },
   },
 });
 
-export const { setUser, setToken, setLoading, setError, logout } = authSlice.actions;
+export const { setUser, setToken, setLoading, setError, setOnboardingCompleted, logout } = authSlice.actions;
 export default authSlice.reducer;
