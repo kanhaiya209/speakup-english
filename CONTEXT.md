@@ -21,7 +21,7 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 ## Package Structure
 - Backend package: com.speakup.backend
 - Backend port: 8080
-- Frontend port: 5174
+- Frontend port: 5173 (CORS allows 5173/5174/5175)
 
 ## Completed Tasks ✅
 
@@ -33,6 +33,18 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 - Task 5: Role management — Learner, Admin ✅ WORKING
 - Task 6: Session persistence with JWT ✅ WORKING
 - Task 7: Account settings and preferences ✅ WORKING
+
+### UI/UX Redesign (Raycast Aesthetic) ✅
+- Design vibe: Raycast style — dark (`bg-neutral-950`), sharp, glowing, premium
+- `shimmer-button.jsx`: Fixed stacking context, dual-layer neon aura (`blur-md opacity-80`), continuous 360° border beam, container queries
+- `background-beams.jsx`: Aceternity UI radial beams and ambient glows
+- `meteors.jsx`: Meteor rain effect on Home page
+- `Login.jsx`: Background beams, ShimmerButton on Sign In and Sign Up tabs
+- `Home.jsx`: Meteors animation, streak, minutes, and level summary cards
+- `ProfileSetup.jsx`: 4-step wizard with `framer-motion` (`AnimatePresence`), glowing segmented progress tracker, localized script tags, ShimmerButton
+- `Quiz.jsx`: Immersive full screen, keycap answer cards (`[A]`, `[B]`, `[C]`, `[D]`), keyboard shortcuts (`A`/`B`/`C`/`D` or `1`/`2`/`3`/`4`), glowing progress HUD, multi-phase AI analysis screen, celebration result screen
+- `Settings.jsx`: Two-column sidebar layout, user profile card, tabbed navigation (`Profile`, `Preferences`, `Commitment`, `Account`), clean dark form inputs, sticky ShimmerButton save bar
+- `AdminDashboard.jsx`: Executive command center with live status, 4 telemetry stat cards (Total Users, DAU, Assessed Fluency, Streaks), real-time search & filter pills, users directory table
 
 ### Backend Files
 - pom.xml
@@ -59,19 +71,20 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 - store/authSlice.js (onboardingCompleted field added)
 - store/index.js
 - api/axiosConfig.js
-- pages/Login.jsx
+- components/ui/background-beams.jsx (Aceternity UI ambient background beams)
+- components/ui/shimmer-button.jsx (glowing animated shimmer button)
+- components/ui/meteors.jsx (meteor rain animation)
+- pages/Login.jsx (BackgroundBeams, ShimmerButton)
 - pages/Register.jsx
-- pages/ProfileSetup.jsx
-- pages/Quiz.jsx (10 questions, animations, result screen)
-- pages/Home.jsx (shows level, settings & admin nav buttons, logout)
-- pages/Settings.jsx (profile edit, daily goal selector, danger zone logout)
-- pages/AdminDashboard.jsx (analytics cards, users table, role badge)
+- pages/ProfileSetup.jsx (4-step wizard, framer-motion, glowing cards)
+- pages/Quiz.jsx (immersive full screen, keycap answer cards, keyboard shortcuts, progress HUD, result screen)
+- pages/Home.jsx (Meteors effect, stats cards, level summary, navigation)
+- pages/Settings.jsx (two-column sidebar layout, tabbed navigation, clean form controls)
+- pages/AdminDashboard.jsx (executive stat cards, search & filter controls, users table)
 - hooks/useQuiz.js
 - App.jsx (routes: /, /profile-setup, /quiz, /home, /settings, /admin + Toaster)
+- index.css (Tailwind v4 @import "tailwindcss", shimmer & meteor keyframes)
 - main.jsx
-
-## Remaining Module 1 Tasks ❌
-- All Module 1 tasks completed! 🎉
 
 ## Next Task
 Module 2 — AI Practice / Real-time Conversation
@@ -88,7 +101,9 @@ npm run dev
 
 ## Important Notes
 - Java 25 installed (not 21, works fine)
-- Tailwind v4 — use @import "tailwindcss" in index.css
+- Tailwind v4 — use @import "tailwindcss" in index.css (NO tailwind config file)
+- Plain JavaScript only (NO TypeScript)
+- Frontend libraries installed: framer-motion, clsx, tailwind-merge, react-hot-toast
 - gcloud auth application-default login already done
 - No firebase-service-account.json — using ADC
 - start-backend.sh exists in project root
