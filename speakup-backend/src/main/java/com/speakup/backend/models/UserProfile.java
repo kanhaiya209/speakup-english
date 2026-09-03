@@ -11,6 +11,7 @@ public record UserProfile(
         String email,
         String name,
         String photoUrl,
+        String role,
         String nativeLanguage,
         String englishLevel,
         String learningGoal,
@@ -29,6 +30,7 @@ public record UserProfile(
                 email,
                 name,
                 photoUrl,
+                "learner",   // role default
                 null,        // nativeLanguage — set during onboarding
                 "beginner",  // englishLevel default
                 null,        // learningGoal — set during onboarding

@@ -82,7 +82,7 @@ public class FirebaseService {
      * @param dailyGoalMinutes the user's daily goal in minutes (nullable)
      * @return the updated UserProfile
      */
-    public UserProfile updateUserProfile(String userId, String nativeLanguage,
+    public UserProfile updateUserProfile(String userId, String name, String nativeLanguage,
                                          String englishLevel, String learningGoal,
                                          Integer dailyGoalMinutes)
             throws ExecutionException, InterruptedException {
@@ -91,6 +91,7 @@ public class FirebaseService {
         DocumentReference docRef = db.collection(USERS_COLLECTION).document(userId);
 
         Map<String, Object> updates = new HashMap<>();
+        if (name != null) updates.put("name", name);
         if (nativeLanguage != null) updates.put("nativeLanguage", nativeLanguage);
         if (englishLevel != null) updates.put("englishLevel", englishLevel);
         if (learningGoal != null) updates.put("learningGoal", learningGoal);
@@ -107,6 +108,21 @@ public class FirebaseService {
     }
 
     /**
+     * Gets a user profile by ID from Firestore.
+     *
+     * @param userId the Firebase UID
+     * @return the UserProfile, or null if not found
+     */
+    public UserProfile getUserById(String userId) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentSnapshot snapshot = db.collection(USERS_COLLECTION).document(userId).get().get();
+        if (!snapshot.exists()) {
+            return null;
+        }
+        return snapshotToUserProfile(snapshot);
+    }
+
+    /**
      * Converts a Firestore document snapshot to a UserProfile record.
      */
     private UserProfile snapshotToUserProfile(DocumentSnapshot snapshot) {
@@ -118,11 +134,17 @@ public class FirebaseService {
             createdAt = date.toInstant();
         }
 
+        String role = snapshot.getString("role");
+        if (role == null || role.isBlank()) {
+            role = "learner";
+        }
+
         return new UserProfile(
                 snapshot.getString("userId"),
                 snapshot.getString("email"),
                 snapshot.getString("name"),
                 snapshot.getString("photoUrl"),
+                role,
                 snapshot.getString("nativeLanguage"),
                 snapshot.getString("englishLevel"),
                 snapshot.getString("learningGoal"),
@@ -142,6 +164,7 @@ public class FirebaseService {
         map.put("email", user.email());
         map.put("name", user.name());
         map.put("photoUrl", user.photoUrl());
+        map.put("role", user.role());
         map.put("nativeLanguage", user.nativeLanguage());
         map.put("englishLevel", user.englishLevel());
         map.put("learningGoal", user.learningGoal());

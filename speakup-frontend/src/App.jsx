@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { Toaster } from 'react-hot-toast'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import ProfileSetup from './pages/ProfileSetup'
 import Quiz from './pages/Quiz'
+import Settings from './pages/Settings'
+import AdminDashboard from './pages/AdminDashboard'
 
 /**
  * Check whether the user still needs to complete profile setup.
@@ -36,6 +39,27 @@ function ProtectedRoute({ children }) {
   }
   if (needsOnboardingQuiz(user)) {
     return <Navigate to="/quiz" replace />
+  }
+  return children
+}
+
+/**
+ * AdminRoute — same as ProtectedRoute but also checks role === "admin".
+ * Non-admin users are redirected to /home.
+ */
+function AdminRoute({ children }) {
+  const { token, user } = useSelector((state) => state.auth)
+  if (!token) {
+    return <Navigate to="/" replace />
+  }
+  if (needsProfileSetup(user)) {
+    return <Navigate to="/profile-setup" replace />
+  }
+  if (needsOnboardingQuiz(user)) {
+    return <Navigate to="/quiz" replace />
+  }
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/home" replace />
   }
   return children
 }
@@ -101,6 +125,33 @@ function PublicRoute({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(12px)',
+            color: '#e2e8f0',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
       <Routes>
         <Route
           path="/"
@@ -132,6 +183,22 @@ function App() {
             <ProtectedRoute>
               <Home />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
