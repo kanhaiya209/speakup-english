@@ -55,13 +55,11 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              disabled
-              aria-disabled="true"
-              className="cursor-not-allowed rounded-control bg-white px-4 py-2 text-sm font-medium text-black opacity-40"
+              onClick={() => navigate('/practice')}
+              className="cursor-pointer rounded-control bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             >
               Start Practicing
             </button>
-            <span className="text-xs text-muted">Coming soon</span>
 
             <div className="hidden h-5 w-px bg-line sm:block" />
 

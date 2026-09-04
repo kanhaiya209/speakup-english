@@ -75,5 +75,5 @@ That is `lint` + `check:design` + `build`; all three must pass with zero errors.
 
 React 19 + Vite + Tailwind CSS v4 (config-less; `@import "tailwindcss"` and `@theme` in
 `src/index.css`), Redux Toolkit, React Router v6, Firebase Auth, axios, react-hot-toast.
-Backend is Spring Boot 3.4.3 on Java 25, port 8080; frontend on 5173. Plain JavaScript
+Backend is Spring Boot 3.4.3 on Java 21, port 8080; frontend on 5173. Plain JavaScript
 throughout. The frontend needs `VITE_FIREBASE_*` env vars or it renders blank black.

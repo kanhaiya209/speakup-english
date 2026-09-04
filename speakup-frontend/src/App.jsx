@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { Toaster } from 'react-hot-toast'
 import Login from './pages/Login'
 import Home from './pages/Home'
+import Practice from './pages/Practice'
 import ProfileSetup from './pages/ProfileSetup'
 import Quiz from './pages/Quiz'
 import Settings from './pages/Settings'
@@ -84,6 +85,7 @@ function App() {
         <Route path="/profile-setup" element={<ProfileRoute><ProfileSetup /></ProfileRoute>} />
         <Route path="/quiz" element={<QuizRoute><Quiz /></QuizRoute>} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

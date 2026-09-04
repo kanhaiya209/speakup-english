@@ -7,7 +7,7 @@ import { logout } from '../store/authSlice'
 /* Nav items. `to: null` renders a disabled (coming soon) item. */
 const NAV_LINKS = [
   { label: 'Home', to: '/home' },
-  { label: 'Practice', to: null },
+  { label: 'Practice', to: '/practice' },
   { label: 'Settings', to: '/settings' },
 ]
 

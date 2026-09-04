@@ -29,6 +29,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Voice conversation failures, which already carry the status the client should see
+     * (404 unknown session, 409 overlapping turn, 429 unnecessary nudge, 502 AI unreachable).
+     */
+    @ExceptionHandler(ConversationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConversationException(ConversationException ex) {
+        log.warn("Conversation error [{}]: {}", ex.status().value(), ex.getMessage());
+        return ResponseEntity
+                .status(ex.status())
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Bad request — missing or invalid parameters.
      */
     @ExceptionHandler(IllegalArgumentException.class)
