@@ -9,7 +9,7 @@ GitHub: https://github.com/kanhaiya209/speakup-english
 
 ## Tech Stack
 - Backend: Spring Boot 3.4.3, Java 21, Maven
-- AI: Spring AI 1.0.0 → Groq (primary) → Gemini → OpenRouter
+- AI: Spring AI 1.0.0 → Groq (`openai/gpt-oss-120b`) → Gemini → OpenRouter
 - Frontend: React 19 + Vite + Tailwind CSS v4
 - Database: Firebase Firestore
 - Auth: Firebase Auth + JWT (jjwt 0.12.6)
@@ -71,6 +71,33 @@ the learner stops speaking.
   `dist/assets/*.css`, backend `mvn compile` clean, Spring context starts, all five routes
   answer 401 without a JWT
 
+### Module 3 — Fluency Scoring & Multi-Agent Session Insights ✅
+Multi-agent real-time and post-session analysis pipeline for speaking practice.
+- **FluencyTrackerAgent**: Evaluates 5 dimensions (Participation, Substance, Flow, Accuracy, Range)
+  producing a 0–100 score and qualitative bands (`Needs Practice`, `Developing`, `Steady`, `Confident`, `Fluent`).
+- **GrammarWatcherAgent**: Asynchronously inspects learner utterances during conversation turns in
+  the background (`@Async`) without blocking tutor response generation.
+- **VocabularyAgent**: Extracts high-value vocabulary words with definitions and usage examples
+  from the conversation transcript post-session using Groq LLM.
+- **SessionInsightService**: Coordinates agents at `POST /api/conversation/end` to assemble insights
+  and persist them to Firestore.
+- **Frontend SessionSummary**: Monochrome Vercel-style summary displaying fluency score, metrics breakdown,
+  grammar corrections with inline explanations, and vocabulary cards.
+
+### Module 4 — Practice Modes ✅
+Targeted conversation practice across real-world situations:
+- 7 modes supported: `free-talk`, `job-interviews`, `business-communication`, `daily-conversation`,
+  `travel-tourism`, `academic-english`, `public-speaking`.
+- Backend persona customization in `TutorChatService` based on selected mode.
+- `ModePicker.jsx` frontend component to switch practice modes with recommended badges based on user goals.
+- Endpoints: `GET /api/conversation/modes`, `POST /api/conversation/start` with mode payload.
+
+### Module 5 — Natural TTS & Push Reminders ✅
+- **ElevenLabs TTS**: `POST /api/tts/speak` streams high-quality natural tutor speech audio (`audio/mpeg`)
+  with automatic fallback to Web Speech Synthesis API via `useTutorVoice.js` if key or quota is unavailable.
+- **Push Reminders**: `NotificationController` + `NotificationService` handles device token registration
+  (`POST/DELETE /api/notifications/token`) with `firebase-messaging-sw.js` for daily speaking practice reminders.
+
 ### UI/UX Redesign (Vercel Dashboard Aesthetic) ✅
 **Design rules live in `speakup-frontend/DESIGN_SYSTEM.md` — read it before any UI work.**
 Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
@@ -96,8 +123,16 @@ Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
   (Profile, Preferences, Commitment, Account). `PUT /api/user/profile` payload unchanged
 - `AdminDashboard.jsx`: four stat cards from `/api/admin/analytics`, search + filter
   toggles, users table with `divide-y divide-line` rows and an empty state
-- `ProfileSetup.jsx`: **not yet redesigned** — still uses framer-motion, ShimmerButton
-  and BackgroundBeams. Sole reason `components/ui/*` and framer-motion still exist
+- `ProfileSetup.jsx`: redesigned to this system — a Quiz-style header with a single
+  `h-0.5` progress bar, one card, radio rows using the §4 selectable-option recipe with the
+  1.5px white dot for selection. framer-motion, ShimmerButton, BackgroundBeams, the emoji
+  icons, the `STEP 01` HUD label and the "Popular"/"Recommended" badges (which implied usage
+  data we do not have) are all gone. All four `value` sets and the `PATCH /api/user/profile`
+  payload are unchanged
+- With that, the §10 legacy exception no longer exists: `src/components/ui/*` is deleted,
+  `framer-motion` / `clsx` / `tailwind-merge` are uninstalled, `check-design.mjs`'s `EXEMPT`
+  is empty and `eslint.config.js` has no import override. The banned-import patterns stay,
+  so re-adding any of it fails lint
 - Verified: `npm run lint` clean, `npm run build` passing, tokens confirmed present in
   `dist/assets/*.css`
 
@@ -107,6 +142,7 @@ Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
 - application.yml
 - FirebaseConfig.java (ADC credentials)
 - SecurityConfig.java (inline JWT filter + CORS 5173/5174/5175)
+- AsyncConfig.java (thread pool executor for async agent tasks)
 - HealthController.java
 - UserProfile.java (Java Record, includes role)
 - ApiResponse.java (Java Record)
@@ -121,37 +157,38 @@ Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
 - QuizResult.java (Java Record)
 - QuizService.java (10 questions, scoring, Firestore save)
 - QuizController.java (GET /questions, POST /submit, GET /result)
-- ConversationController.java (POST /start, /turn, /nudge, /end · GET /sessions)
+- ConversationController.java (POST /start, /turn, /nudge, /end · GET /sessions, /modes)
 - ConversationService.java (live sessions, per-session lock, Firestore save, streak/minutes)
 - TutorChatService.java (SpeakUp tutor persona, Groq via Spring AI ChatModel, TTS-safe text)
-- ConversationMessage.java · PracticeSession.java (Java Records)
-- ConversationTurnRequest.java · ConversationTurnResponse.java · SessionRequest.java
+- NotificationController.java & NotificationService.java (FCM token management & reminders)
+- TtsController.java & ElevenLabsTtsService.java (streaming natural voice speech)
+- SessionInsightService.java (multi-agent analysis orchestration)
+- agents/FluencyTrackerAgent.java · agents/GrammarWatcherAgent.java · agents/VocabularyAgent.java · agents/LlmJsonSupport.java
+- ConversationMessage.java · PracticeSession.java · FluencyScore.java · GrammarNote.java · VocabularyWord.java · PracticeMode.java
+- ConversationTurnRequest.java · ConversationTurnResponse.java · SessionRequest.java · StartSessionRequest.java · PracticeModeResponse.java · SpeakRequest.java · DeviceTokenRequest.java
 - ConversationException.java (404 / 409 / 429 / 502, mapped in GlobalExceptionHandler)
 
 ### Frontend Files
 - firebase.js
+- public/firebase-messaging-sw.js (service worker for web push notifications)
 - store/authSlice.js (onboardingCompleted field added)
 - store/voiceSlice.js (last saved session + recent-session list, reset on auth/logout)
 - store/index.js
 - api/axiosConfig.js
-- api/conversationApi.js (conversation endpoints, keepalive end-on-unload, parseInstant)
+- api/conversationApi.js (conversation endpoints, modes, keepalive end-on-unload, parseInstant)
+- api/notificationsApi.js (device token registration and test notifications)
 - config/voice.js (all voice timing constants, VOICE_STATE, browser feature detection)
-- hooks/useSpeechRecognition.js · hooks/useSpeechSynthesis.js · hooks/useVoiceConversation.js
-- components/voice/VoiceConversation.jsx (pre-flight → live → summary)
-- components/voice/VoiceStatus.jsx · VoiceControls.jsx · ConversationTranscript.jsx
+- hooks/useSpeechRecognition.js · hooks/useSpeechSynthesis.js · hooks/useVoiceConversation.js · hooks/useTutorVoice.js · hooks/usePushNotifications.js
+- components/voice/VoiceConversation.jsx (pre-flight → mode select → live → summary)
+- components/voice/VoiceStatus.jsx · VoiceControls.jsx · ConversationTranscript.jsx · ModePicker.jsx
 - components/voice/SessionSummary.jsx · RecentSessions.jsx · formatters.js
 - components/Navbar.jsx (shared sticky nav, avatar dropdown, mobile menu)
-- components/ui/background-beams.jsx (legacy — ProfileSetup.jsx only)
-- components/ui/shimmer-button.jsx (legacy — ProfileSetup.jsx only; keyframes are local
-  to the component via a React 19 hoisted `<style>`, not in index.css)
-- components/ui/meteors.jsx (legacy — unused, kept with the other two)
 - pages/Login.jsx (centred card, segmented tabs, white primary + outlined Google button)
 - pages/Register.jsx
-- pages/ProfileSetup.jsx (4-step wizard, framer-motion — NOT yet redesigned)
+- pages/ProfileSetup.jsx (4-step wizard: language, level, goal, daily minutes)
 - pages/Quiz.jsx (plain progress bar, flat keycap options, A–D / 1–4 shortcuts, result screen)
-- pages/Home.jsx (greeting, four real stat cards, quick actions — "Start Practicing" now
-  routes to /practice)
-- pages/Practice.jsx (voice conversation + recent sessions)
+- pages/Home.jsx (greeting, four real stat cards, quick actions — "Start Practicing" routes to /practice)
+- pages/Practice.jsx (voice conversation + mode picker + recent sessions)
 - pages/Settings.jsx (240px sidebar, four sections, clean form controls)
 - pages/AdminDashboard.jsx (four analytics stat cards, search + filters, users table)
 - hooks/useQuiz.js
@@ -161,8 +198,10 @@ Root `CLAUDE.md` and `AGENTS.md` point every AI agent at it.
 - DESIGN_SYSTEM.md (**the UI source of truth — read before any design work**)
 
 ## Next Task
-Module 3 — pronunciation feedback and per-session scoring. Voice practice itself is done;
-what is missing is analysis of *how* the learner spoke, not just what they said.
+Module 6 — Production Deployment & Polish
+- Set up Railway environment variables for backend (including `ELEVENLABS_API_KEY`)
+- Configure Vercel production build for frontend
+- Add privacy notice for speech recognition in browser settings
 
 Open items carried over from Module 2:
 - Voice practice needs Chrome or Edge. Firefox exposes no `SpeechRecognition`, and the page
@@ -184,14 +223,24 @@ npm run dev
 ## Important Notes
 - **UI work: read `speakup-frontend/DESIGN_SYSTEM.md` first — it is the single source of
   truth. Root `CLAUDE.md` (Claude Code) and `AGENTS.md` (other agents) enforce this.**
+- **The Groq model id is a moving target.** `spring.ai.openai.chat.options.model` is
+  `openai/gpt-oss-120b`. It replaced `llama-3.3-70b-versatile`, which Groq decommissioned for
+  free and developer tier keys on 2026-08-16 (now enterprise-only) — every conversation
+  request failed with a 502 "The AI tutor is unreachable right now" until the id was changed.
+  Check https://console.groq.com/docs/deprecations before blaming the code. gpt-oss returns
+  reasoning in a separate `reasoning` field, never in `content`, but it spends part of the
+  completion budget on it, hence `max-completion-tokens: 1024` and `reasoning-effort: low`
+- **Groq OpenAI base-url in Spring AI 1.0.0 is `https://api.groq.com/openai` (without trailing `/v1`).**
+  Spring AI's `OpenAiApi` appends `/v1/chat/completions` internally, so having `/v1` in the base-url
+  produces `/openai/v1/v1/chat/completions` and returns an HTTP 404 unknown URL error.
 - Java 21 — `<java.version>21</java.version>` in pom.xml, and `java -version` reports
   Temurin 21.0.12.1. (Earlier notes here claimed Java 25; that was wrong.)
 - Tailwind v4 — use @import "tailwindcss" in index.css (NO tailwind config file)
 - Tailwind v4 silently drops utilities whose `@theme` token is missing — verify against
   `dist/assets/*.css` after any token change
 - Plain JavaScript only (NO TypeScript)
-- Frontend libraries installed: framer-motion, clsx, tailwind-merge, react-hot-toast
-  (framer-motion is legacy — ProfileSetup.jsx only, do not add new usages)
+- Frontend libraries installed: react-hot-toast only. framer-motion, clsx and
+  tailwind-merge were removed with the ProfileSetup redesign — do not reinstall them
 - Frontend needs `VITE_FIREBASE_*` in `.env` or `getAuth()` throws and the page is blank
 - gcloud auth application-default login already done
 - No firebase-service-account.json — using ADC

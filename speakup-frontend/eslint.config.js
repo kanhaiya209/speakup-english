@@ -5,10 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 /**
- * Design-system guard. See DESIGN_SYSTEM.md §3 (hard rules) and §10 (legacy exception).
+ * Design-system guard. See DESIGN_SYSTEM.md §3 (hard rules).
  * Glob patterns, not exact paths, so a deeper relative import cannot slip through.
- * Banned everywhere except ProfileSetup.jsx — the one page still on the pre-redesign
- * glow design — and the ui/ components it depends on.
+ * Banned everywhere, with no exceptions: `framer-motion` is uninstalled and the three
+ * legacy `ui/` components are deleted, but the patterns stay so re-adding one fails lint.
  */
 const bannedDesignImports = [
   {
@@ -48,10 +48,14 @@ export default defineConfig([
     },
   },
   {
-    // The documented exception — do not add files to this list.
-    files: ['src/pages/ProfileSetup.jsx', 'src/components/ui/**'],
-    rules: {
-      'no-restricted-imports': 'off',
+    /**
+     * The Cloud Messaging service worker. Declares the worker globals it genuinely runs with
+     * (`self`, `clients`, `importScripts`) rather than silencing the undefined-variable rule —
+     * no rule is relaxed here, only the environment corrected.
+     */
+    files: ['public/firebase-messaging-sw.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker, ...globals.browser },
     },
   },
 ])

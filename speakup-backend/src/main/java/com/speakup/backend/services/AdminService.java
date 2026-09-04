@@ -121,6 +121,8 @@ public class AdminService {
                 intOrDefault(snapshot, "dailyGoalMinutes", 15),
                 intOrDefault(snapshot, "streak", 0),
                 longOrDefault(snapshot, "totalMinutesPracticed", 0L),
+                snapshot.getString("tutorVoice"),
+                Boolean.TRUE.equals(snapshot.getBoolean("notificationsEnabled")),
                 createdAt
         );
     }

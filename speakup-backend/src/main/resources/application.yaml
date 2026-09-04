@@ -15,13 +15,21 @@ spring:
 
   ai:
     openai:
-      base-url: https://api.groq.com/openai/v1
+      base-url: https://api.groq.com/openai
       api-key: ${GROQ_API_KEY}
       chat:
         options:
-          model: llama-3.3-70b-versatile
+          # Groq decommissioned llama-3.3-70b-versatile for free and developer tier keys on
+          # 2026-08-16 (it is now enterprise-only), which made every chat call fail. This is
+          # Groq's own recommended replacement. Check
+          # https://console.groq.com/docs/deprecations before assuming this id still exists.
+          model: openai/gpt-oss-120b
           temperature: 0.85
-          max-tokens: 500
+          # gpt-oss spends part of the completion budget on reasoning tokens, which arrive in
+          # a separate `reasoning` field and never in `content`. Keep the budget well above
+          # the length of a spoken reply or `content` can come back empty.
+          max-completion-tokens: 1024
+          reasoning-effort: low
 
 firebase:
   project-id: ${FIREBASE_PROJECT_ID}
@@ -31,7 +39,16 @@ app:
   groq-api-key: ${GROQ_API_KEY}
   gemini-api-key: ${GEMINI_API_KEY}
   openrouter-api-key: ${OPENROUTER_API_KEY}
-  elevenlabs-api-key: ${ELEVENLABS_API_KEY}
+  # Optional. Blank means the tutor uses the browser's speech synthesiser only — the
+  # application starts and every session works exactly as before.
+  elevenlabs-api-key: ${ELEVENLABS_API_KEY:}
+  elevenlabs:
+    # "Sarah" from the ElevenLabs default voice library: clear, unhurried, and easy for a
+    # learner to follow. Any voice id from https://elevenlabs.io/app/voice-library works here.
+    voice-id: EXAVITQu4vr4xnSDxMaL
+    # Flash is the cheapest multilingual model and the fastest to first byte, which matters
+    # more than timbre when the learner is waiting to reply.
+    model-id: eleven_flash_v2_5
 
 logging:
   level:

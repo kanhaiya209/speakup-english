@@ -46,13 +46,15 @@ existing element `id`s (`signin-submit`, `signup-submit`, `settings-save`,
 
 ## Reference implementations
 
-Compliant, and safe to copy from: `src/components/Navbar.jsx`, `src/pages/Login.jsx`,
-`src/pages/Home.jsx`, `src/pages/Quiz.jsx`, `src/pages/Settings.jsx`,
-`src/pages/AdminDashboard.jsx`.
+Compliant, and safe to copy from: every page and component in `src/`. The closest
+reference for what you are building is usually `src/components/Navbar.jsx`,
+`src/pages/Login.jsx`, `src/pages/Home.jsx`, `src/pages/Quiz.jsx`,
+`src/pages/ProfileSetup.jsx`, `src/pages/Settings.jsx`, `src/pages/AdminDashboard.jsx`.
 
-Not a reference: `src/pages/ProfileSetup.jsx`. It is the only file still on the old glow
-design and the only reason `src/components/ui/{shimmer-button,background-beams,meteors}.jsx`
-and `framer-motion` still exist. Do not import those anywhere else.
+There is no longer a legacy exception. `ProfileSetup.jsx` has been redesigned, and
+`src/components/ui/{shimmer-button,background-beams,meteors}.jsx` plus the `framer-motion`,
+`clsx` and `tailwind-merge` dependencies are deleted. Do not re-add them — lint rejects the
+imports.
 
 ## Verify before you report done
 

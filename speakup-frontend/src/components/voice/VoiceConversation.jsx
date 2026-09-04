@@ -1,13 +1,18 @@
+import { useState } from 'react'
 import { useSelector } from 'react-redux'
 import { SILENCE_PROMPT_MS, VOICE_STATE } from '../../config/voice'
 import useVoiceConversation from '../../hooks/useVoiceConversation'
 import ConversationTranscript from './ConversationTranscript'
+import ModePicker from './ModePicker'
 import SessionSummary from './SessionSummary'
 import VoiceControls from './VoiceControls'
 import VoiceStatus from './VoiceStatus'
 
 const PRIMARY_BUTTON =
   'flex cursor-pointer items-center justify-center gap-2 rounded-control bg-white px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50'
+
+const PILL =
+  'inline-flex items-center rounded-control border border-line bg-canvas px-2 py-0.5 text-xs text-muted'
 
 /** States in which the transcript panel is the thing on screen. */
 const LIVE_STATES = [
@@ -47,6 +52,12 @@ function Bullet({ children }) {
  */
 export default function VoiceConversation({ onLeave }) {
   const user = useSelector((state) => state.auth.user)
+  /**
+   * Null until the learner picks a mode, which is not an empty selection: the backend uses the
+   * mode recommended for their learning goal when none is sent, and the picker shows that mode
+   * as the selected one.
+   */
+  const [mode, setMode] = useState(null)
   const {
     support,
     status,
@@ -68,6 +79,7 @@ export default function VoiceConversation({ onLeave }) {
   const isLive = LIVE_STATES.includes(status)
   const showPreflight = status === VOICE_STATE.IDLE || isStarting
   const silenceSeconds = Math.round(SILENCE_PROMPT_MS / 1000)
+  const startSession = () => start(mode)
 
   return (
     <div className="space-y-6">
@@ -132,10 +144,14 @@ export default function VoiceConversation({ onLeave }) {
             <Bullet>Everything you both say is written down below as you go.</Bullet>
           </ul>
 
+          <div className="mt-5 border-t border-line pt-5">
+            <ModePicker value={mode} onChange={setMode} disabled={isStarting} />
+          </div>
+
           <div className="mt-5">
             <button
               type="button"
-              onClick={start}
+              onClick={startSession}
               disabled={isStarting}
               className={PRIMARY_BUTTON}
               id="voice-start-session"
@@ -150,7 +166,10 @@ export default function VoiceConversation({ onLeave }) {
       {isLive && (
         <div className="rounded-card border border-line bg-surface">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-            <VoiceStatus status={status} startedAt={session?.startedAt} />
+            <div className="flex flex-wrap items-center gap-3">
+              <VoiceStatus status={status} startedAt={session?.startedAt} />
+              {session?.modeLabel && <span className={PILL}>{session.modeLabel}</span>}
+            </div>
             <VoiceControls status={status} onPause={pause} onResume={resume} onEnd={end} />
           </div>
           <div className="px-5 py-5">
@@ -170,7 +189,7 @@ export default function VoiceConversation({ onLeave }) {
 
       {status === VOICE_STATE.ENDED && (
         <div className="rounded-card border border-line bg-surface p-5">
-          <SessionSummary summary={summary} onRestart={start} onBack={onLeave} />
+          <SessionSummary summary={summary} onRestart={startSession} onBack={onLeave} />
         </div>
       )}
 

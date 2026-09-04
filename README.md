@@ -147,12 +147,13 @@ speakup-english/
 │
 └── speakup-frontend/              # React 19 + Vite Frontend
     ├── src/
-    │   ├── api/                   # axios instance + interceptors
+    │   ├── api/                   # axios instance + conversation endpoints
     │   ├── assets/                # Icons and branding
-    │   ├── components/            # Navbar + ui/ (legacy, ProfileSetup only)
-    │   ├── hooks/                 # useQuiz
-    │   ├── pages/                 # Login, ProfileSetup, Quiz, Home, Settings, Admin
-    │   ├── store/                 # Redux Toolkit authSlice
+    │   ├── components/            # Navbar + voice/ (conversation UI)
+    │   ├── config/                # voice.js — timing constants, feature detection
+    │   ├── hooks/                 # useQuiz, useSpeech*, useVoiceConversation
+    │   ├── pages/                 # Login, ProfileSetup, Quiz, Home, Practice, Settings, Admin
+    │   ├── store/                 # Redux Toolkit authSlice + voiceSlice
     │   ├── App.jsx                # Routes and guards
     │   ├── index.css              # Tailwind v4 @theme design tokens
     │   └── main.jsx               # Entry point
@@ -269,6 +270,7 @@ cd speakup-english
 | `VITE_FIREBASE_STORAGE_BUCKET`| Firebase Cloud Storage Bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Messaging Sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase Web Application ID |
+| `VITE_FIREBASE_VAPID_KEY` | Web Push certificate key pair (Cloud Messaging). Optional — without it, practice reminders render disabled in Settings |
 
 ---
 
@@ -278,10 +280,24 @@ cd speakup-english
 |---|---|---|---|
 | `GET` | `/api/health` | Public | Backend health diagnostic & app status |
 | `GET` | `/actuator/health` | Public | Spring Boot Actuator health status |
-| `POST` | `/api/auth/register` | Public | User registration via Firebase ID token |
-| `POST` | `/api/auth/login` | Public | User authentication & JWT issuance |
-| `POST` | `/api/chat/message` | Authenticated | Send user audio/text & receive AI response |
-| `GET` | `/api/reports/download`| Authenticated | Export fluency assessment as PDF |
+| `POST` | `/api/auth/google` | Public | Exchanges a Firebase ID token for a SpeakUp JWT |
+| `GET` | `/api/user/profile` | Authenticated | The signed-in learner's profile |
+| `PUT` `PATCH` | `/api/user/profile` | Authenticated | Partial profile update — null fields are left alone |
+| `GET` | `/api/quiz/questions` | Authenticated | Level-assessment questions |
+| `POST` | `/api/quiz/submit` | Authenticated | Scores the quiz and sets `englishLevel` |
+| `GET` | `/api/quiz/result` | Authenticated | The learner's stored assessment result |
+| `GET` | `/api/conversation/modes` | Authenticated | The 7 practice modes, flagging the one recommended for the learner's goal |
+| `POST` | `/api/conversation/start` | Authenticated | Opens a session; optional `{ mode }`, else the recommended one |
+| `POST` | `/api/conversation/turn` | Authenticated | One learner utterance in, the tutor's reply out |
+| `POST` | `/api/conversation/nudge` | Authenticated | Prompts a learner who has gone quiet |
+| `POST` | `/api/conversation/end` | Authenticated | Ends the session, runs the analysis agents and saves everything |
+| `GET` | `/api/conversation/sessions` | Authenticated | The learner's own saved sessions, newest first |
+| `POST` | `/api/tts/speak` | Authenticated | Proxies one tutor line to ElevenLabs, returns `audio/mpeg`; 503 when unconfigured |
+| `POST` `DELETE` | `/api/notifications/token` | Authenticated | Registers / forgets one device for practice reminders |
+| `POST` | `/api/notifications/test` | Authenticated | Sends the reminder immediately, for verification |
+| `GET` | `/api/admin/users` | Admin | All learners |
+| `GET` | `/api/admin/users/{userId}` | Admin | One learner in detail |
+| `GET` | `/api/admin/analytics` | Admin | Platform-wide practice analytics |
 
 ---
 

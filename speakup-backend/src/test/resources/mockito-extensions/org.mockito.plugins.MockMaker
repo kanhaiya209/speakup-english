@@ -1,0 +1,7 @@
+# Mockito's default inline mock maker needs to attach a Java agent to the running JVM at
+# runtime, and this JDK's self-attach mechanism is unavailable — the context test failed with
+# "It appears as if your JDK does not supply a working agent attachment mechanism".
+#
+# The subclass mock maker needs no agent. Nothing in this project mocks a final class or a
+# static method, which is the only capability the inline maker adds, so this costs nothing.
+mock-maker-subclass

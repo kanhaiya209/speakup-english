@@ -26,3 +26,36 @@ export function formatSessionDate(value) {
     minute: '2-digit',
   })
 }
+
+/**
+ * Display labels for the practice mode ids stored on every saved session.
+ *
+ * These are the labels from the backend's `PracticeMode` enum, which owns them. They are
+ * repeated here because a saved session carries only the id, and the id is not a label — the
+ * ampersand in "Travel & Tourism" cannot be recovered from `travel-tourism`. Keep them in step
+ * with the enum; the ids themselves are the API contract and must not be changed.
+ */
+const MODE_LABELS = {
+  'free-talk': 'Free Talk',
+  'job-interviews': 'Job Interviews',
+  'business-communication': 'Business Communication',
+  'daily-conversation': 'Daily Conversation',
+  'travel-tourism': 'Travel & Tourism',
+  'academic-english': 'Academic English',
+  'public-speaking': 'Public Speaking',
+}
+
+/**
+ * `job-interviews` → `Job Interviews`. An id added to the backend after this map was written
+ * still reads sensibly rather than breaking the row, and a session saved before modes existed
+ * returns an em dash.
+ */
+export function formatMode(modeId) {
+  if (!modeId) return '—'
+  if (MODE_LABELS[modeId]) return MODE_LABELS[modeId]
+  return modeId
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}

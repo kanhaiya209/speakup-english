@@ -2,6 +2,7 @@ package com.speakup.backend.services;
 
 import com.speakup.backend.common.ConversationException;
 import com.speakup.backend.models.ConversationMessage;
+import com.speakup.backend.models.PracticeMode;
 import com.speakup.backend.models.UserProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +37,15 @@ public class TutorChatService {
     private static final Logger log = LoggerFactory.getLogger(TutorChatService.class);
 
     /**
-     * Shorter than the 500-token application.yaml default. A tutor turn that takes longer
-     * than a few seconds to speak stops feeling like a conversation.
+     * The whole completion budget for one turn, reasoning tokens included. A spoken reply is
+     * 45 words at most, so the bulk of this is headroom for gpt-oss's reasoning pass — if the
+     * budget runs out mid-reasoning the model returns an empty {@code content} and the learner
+     * hears nothing. Cheap insurance: we are billed for tokens produced, not for the ceiling.
      */
-    private static final int REPLY_MAX_TOKENS = 200;
+    private static final int REPLY_TOKEN_BUDGET = 700;
+
+    /** Groq's gpt-oss reasoning levels are low / medium / high. A greeting needs none of it. */
+    private static final String REASONING_EFFORT = "low";
 
     /** How many past turns the model sees. Enough for coherence, bounded for cost. */
     private static final int HISTORY_MESSAGES = 16;
@@ -66,29 +72,38 @@ public class TutorChatService {
     }
 
     /**
-     * The learner facts that shape the tutor's voice. Extracted from the Firestore profile
-     * once per session so a turn never costs an extra database read.
+     * The learner facts that shape the tutor's voice, plus the mode that shapes the scenario.
+     * Extracted from the Firestore profile once per session so a turn never costs an extra
+     * database read.
      */
     public record LearnerContext(
             String name,
             String englishLevel,
             String nativeLanguage,
-            String learningGoal
+            String learningGoal,
+            PracticeMode mode
     ) {
-        public static LearnerContext from(UserProfile profile) {
+        public static LearnerContext from(UserProfile profile, PracticeMode mode) {
+            PracticeMode resolved = mode != null ? mode : PracticeMode.FREE_TALK;
             if (profile == null) {
-                return new LearnerContext(null, null, null, null);
+                return new LearnerContext(null, null, null, null, resolved);
             }
             return new LearnerContext(
                     profile.name(),
                     profile.englishLevel(),
                     profile.nativeLanguage(),
-                    profile.learningGoal());
+                    profile.learningGoal(),
+                    resolved);
         }
 
         String firstName() {
             if (name == null || name.isBlank()) return null;
             return name.trim().split("\\s+")[0];
+        }
+
+        /** Never null — {@link #from} defaults it, and the canonical constructor is only used there. */
+        PracticeMode modeOrDefault() {
+            return mode != null ? mode : PracticeMode.FREE_TALK;
         }
     }
 
@@ -100,8 +115,8 @@ public class TutorChatService {
         String firstName = learner.firstName();
         String primer = "(The learner has just opened a voice practice session and has not "
                 + "spoken yet. Greet them" + (firstName != null ? " by their first name" : "")
-                + " in one short sentence, then ask one easy opening question that fits their "
-                + "goal. Keep it under 30 words.)";
+                + " in one short sentence, then open this session's mode: set up the situation in "
+                + "a few words and ask one easy first question. Keep it under 35 words.)";
 
         return generate(learner, List.of(), new UserMessage(primer));
     }
@@ -152,7 +167,8 @@ public class TutorChatService {
         }
 
         OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .maxTokens(REPLY_MAX_TOKENS)
+                .maxCompletionTokens(REPLY_TOKEN_BUDGET)
+                .reasoningEffort(REASONING_EFFORT)
                 .build();
 
         String raw;
@@ -162,7 +178,10 @@ public class TutorChatService {
                     ? response.getResult().getOutput().getText()
                     : null;
         } catch (Exception ex) {
-            log.error("Groq call failed", ex);
+            // The upstream body is the only thing that says *why* — a decommissioned model id,
+            // a revoked key and an exhausted quota all surface here as the same 502 to the
+            // browser. Log it in one line so the next occurrence takes one glance to diagnose.
+            log.error("Groq chat call failed: {}", ex.getMessage(), ex);
             throw ConversationException.aiUnavailable(ex);
         }
 
@@ -207,6 +226,12 @@ public class TutorChatService {
                 .append("- Never prefix your reply with a speaker label like \"AI Tutor:\".\n")
                 .append("- Write numbers, dates and abbreviations the way you would say them out loud.\n");
 
+        PracticeMode mode = learner.modeOrDefault();
+        prompt.append("\nThis session's mode — ").append(mode.label()).append(":\n")
+                .append(mode.personaPrompt()).append('\n')
+                .append("Stay in this mode for the whole session. Never announce it by name, ")
+                .append("never break character to explain it, and keep the speech rules above.\n");
+
         prompt.append("\nHow you coach:\n")
                 .append("- Always end your turn with one clear question or invitation so the learner keeps talking.\n")
                 .append("- React to what they actually said before you ask anything — show you were listening.\n")
@@ -221,7 +246,9 @@ public class TutorChatService {
         } else {
             prompt.append("- Stay in English even if they slip into another language.\n");
         }
-        if (goal != null && !goal.isBlank()) {
+        // Only in Free Talk: in every other mode the persona above already names the scenario,
+        // and repeating the goal here just makes the model announce it.
+        if (mode == PracticeMode.FREE_TALK && goal != null && !goal.isBlank()) {
             prompt.append("- Steer naturally towards situations they will meet in ").append(goal).append(".\n");
         }
 

@@ -35,6 +35,18 @@ export const TTS_CHUNK_CHARS = 180
 /** Mirrors the backend's own cap, so an over-long utterance is trimmed before the request. */
 export const MAX_UTTERANCE_CHARS = 1000
 
+/**
+ * The two voices the tutor can be heard in. These strings are stored on the user profile as
+ * `tutorVoice`, so they are an API contract — `UserProfile.VOICE_BROWSER` and
+ * `UserProfile.VOICE_ELEVENLABS` on the backend are the same two values.
+ */
+export const TUTOR_VOICE = {
+  /** The browser's own `speechSynthesis`. Free, offline, and the default. */
+  BROWSER: 'browser',
+  /** ElevenLabs, proxied through the backend so the key stays on the server. */
+  NATURAL: 'elevenlabs',
+}
+
 /** The one state a session can be in. The UI renders directly from this. */
 export const VOICE_STATE = {
   IDLE: 'idle',

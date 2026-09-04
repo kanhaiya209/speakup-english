@@ -7,6 +7,9 @@ import api from './axiosConfig'
  * The Groq key lives only on the backend — the browser sends text and receives text.
  */
 
+/** Just above the backend's 20-second ElevenLabs deadline. See {@link synthesizeSpeech}. */
+const TTS_REQUEST_TIMEOUT_MS = 25000
+
 function unwrap(response) {
   const body = response.data
   if (!body || body.success !== true) {
@@ -15,9 +18,25 @@ function unwrap(response) {
   return body.data
 }
 
-/** Opens a session. Resolves to { sessionId, startedAt, reply, messageCount }. */
-export function startConversation() {
-  return api.post('/api/conversation/start').then(unwrap)
+/**
+ * The seven practice modes, with `recommended: true` on the one matching the learner's goal.
+ * Resolves to [{ id, label, description, recommended }].
+ *
+ * The list is served rather than duplicated here because the persona prompt behind each mode
+ * lives on the server and the ids are stored on every saved session.
+ */
+export function fetchModes() {
+  return api.get('/api/conversation/modes').then(unwrap)
+}
+
+/**
+ * Opens a session. Resolves to { sessionId, startedAt, reply, messageCount, mode, modeLabel }.
+ *
+ * `modeId` is optional — without it the backend picks the mode recommended for the learner's
+ * `learningGoal`.
+ */
+export function startConversation(modeId) {
+  return api.post('/api/conversation/start', { mode: modeId || null }).then(unwrap)
 }
 
 /** Sends one finalised utterance. Resolves to { learnerMessage, reply, messageCount }. */
@@ -38,6 +57,41 @@ export function endConversation(sessionId) {
 /** The learner's own saved sessions, newest first. */
 export function fetchRecentSessions(limit = 5) {
   return api.get('/api/conversation/sessions', { params: { limit } }).then(unwrap)
+}
+
+/**
+ * Renders one tutor line as natural speech, resolving to an `ArrayBuffer` of MP3.
+ *
+ * The ElevenLabs key stays on the backend, so the audio is proxied rather than fetched
+ * directly. This cannot use `unwrap` — the success body is binary, not the usual envelope.
+ *
+ * Rejects with `voiceUnavailable: true` when the backend answered 503, which it does when no
+ * key is configured or the quota is spent. That is a lasting condition, so the caller stops
+ * asking for the rest of the session instead of paying a doomed round-trip on every turn.
+ * Any other failure rejects without the flag and is worth retrying next turn.
+ *
+ * The timeout sits just above the backend's own 20-second ElevenLabs deadline, so a slow
+ * upstream still gets to answer 503 rather than being cut off here — and a hung request cannot
+ * leave the conversation waiting on speech that will never arrive.
+ */
+export function synthesizeSpeech(text) {
+  return api
+    .post('/api/tts/speak', { text }, { responseType: 'arraybuffer', timeout: TTS_REQUEST_TIMEOUT_MS })
+    .then((response) => {
+      const audio = response.data
+      if (!(audio instanceof ArrayBuffer) || audio.byteLength === 0) {
+        throw new Error('The tutor voice returned no audio.')
+      }
+      return audio
+    })
+    .catch((error) => {
+      if (error?.response?.status === 503) {
+        const unavailable = new Error('The natural tutor voice is unavailable.')
+        unavailable.voiceUnavailable = true
+        throw unavailable
+      }
+      throw error
+    })
 }
 
 /**

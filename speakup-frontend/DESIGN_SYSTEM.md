@@ -97,7 +97,7 @@ Most of them are machine-enforced — see §11 — so breaking one fails `npm ru
 | Banned | Why |
 |---|---|
 | `framer-motion` — any import, anywhere | Motion budget is CSS colour transitions only |
-| `BackgroundBeams`, `ShimmerButton`, `Meteors`, `SoundwaveEmblem`, `Keycap` | Legacy glow-era components; kept only for `ProfileSetup.jsx` (see §10) |
+| `BackgroundBeams`, `ShimmerButton`, `Meteors`, `SoundwaveEmblem`, `Keycap` | Legacy glow-era components; deleted (see §10). Never re-add one |
 | Glow / neon: `shadow-[0_0_…]`, `blur-*`, `drop-shadow-*`, `animate-pulse` | Flat surfaces only |
 | Gradients: `bg-gradient-*`, `from-*`, `via-*`, `to-*` | Monochrome only |
 | Glass: `backdrop-blur-*`, `bg-*/70` translucent panels | Flat surfaces only |
@@ -436,7 +436,7 @@ Non-negotiable, and cheap to get right:
 
 ---
 
-## 10. Tailwind v4 notes & the one legacy exception
+## 10. Tailwind v4 notes
 
 ### Working with a config-less Tailwind
 
@@ -455,10 +455,10 @@ Non-negotiable, and cheap to get right:
 - Opacity modifiers on theme colours are fine (`border-danger/30`, `bg-danger/10`,
   `hover:bg-white/90`, `ring-white/40`). Translucent *panels* are not (§3).
 
-### The `ProfileSetup.jsx` exception
+### There is no longer a legacy exception
 
-`src/pages/ProfileSetup.jsx` is the **only** file still on the pre-redesign glow
-design. It is the sole reason these files still exist:
+`src/pages/ProfileSetup.jsx` was the last file on the pre-redesign glow design. It has been
+rebuilt to this system, and in the same change these were deleted outright:
 
 ```
 src/components/ui/shimmer-button.jsx
@@ -466,18 +466,15 @@ src/components/ui/background-beams.jsx
 src/components/ui/meteors.jsx
 ```
 
-Rules for that exception:
+along with the `framer-motion`, `clsx` and `tailwind-merge` dependencies, which existed
+only for those three files. Nothing in `src/` is exempt any more:
+`scripts/check-design.mjs` has an empty `EXEMPT`, and `eslint.config.js` has no
+`no-restricted-imports` override. Keep it that way — the banned-import patterns are still
+there, so re-adding `framer-motion` or a shimmer button fails `npm run lint`.
 
-- Do **not** import those three components into any other file.
-- Do **not** copy patterns out of `ProfileSetup.jsx` — it is not a reference.
-- `shimmer-button.jsx` keeps its keyframes locally, in a React 19 hoisted
-  `<style href="shimmer-button-keyframes" precedence="default">`. Keyframes must never
-  go back into `index.css`.
-- When `ProfileSetup.jsx` is eventually redesigned to this system, delete all three
-  `ui/` components and `framer-motion` in the same change.
-
-Every other page — `Login`, `Home`, `Quiz`, `Settings`, `AdminDashboard` — and
-`components/Navbar.jsx` are already fully compliant. Use them as the reference.
+Every page — `Login`, `ProfileSetup`, `Quiz`, `Home`, `Practice`, `Settings`,
+`AdminDashboard` — and `components/Navbar.jsx` follow this document. Any of them is a
+valid reference.
 
 ---
 
@@ -514,8 +511,8 @@ inside `className` strings rather than in the AST:
 | `font-weight` | `font-bold`, `font-extrabold`, `font-black` |
 
 It exits 1 with the file, line, offending class and the section that forbids it.
-`src/pages/ProfileSetup.jsx` and `src/components/ui/**` are exempt — **do not add files
-to that list** (`EXEMPT` at the top of the script).
+Its `EXEMPT` list is empty and must stay empty — **never add a file to it** to silence a
+violation. Fix the code instead.
 
 **`npm run build`** — Vite. Then confirm the tokens you used actually compiled, because
 Tailwind v4 drops unknown ones silently:

@@ -3,14 +3,22 @@ package com.speakup.backend.services;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
+import com.google.cloud.firestore.SetOptions;
+import com.google.cloud.firestore.WriteBatch;
 import com.google.firebase.cloud.FirestoreClient;
+import com.speakup.backend.agents.GrammarWatcherAgent;
 import com.speakup.backend.common.ConversationException;
 import com.speakup.backend.dto.ConversationTurnResponse;
 import com.speakup.backend.models.ConversationMessage;
+import com.speakup.backend.models.FluencyScore;
+import com.speakup.backend.models.GrammarNote;
+import com.speakup.backend.models.PracticeMode;
 import com.speakup.backend.models.PracticeSession;
 import com.speakup.backend.models.UserProfile;
+import com.speakup.backend.models.VocabularyWord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,13 +30,19 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -52,6 +66,10 @@ public class ConversationService {
 
     private static final String SESSIONS_COLLECTION = "practiceSessions";
     private static final String USERS_COLLECTION = "users";
+    /** Per-learner vocabulary book, deduped by word so a repeat increments instead of duplicating. */
+    private static final String VOCABULARY_SUBCOLLECTION = "vocabulary";
+    /** Per-learner mistake log, one document per correction, queryable without scanning sessions. */
+    private static final String MISTAKES_SUBCOLLECTION = "mistakes";
 
     /** Streaks are day-based, and SpeakUp's learners and Firestore region are both in India. */
     private static final ZoneId LEARNER_ZONE = ZoneId.of("Asia/Kolkata");
@@ -70,6 +88,12 @@ public class ConversationService {
     private static final Duration DUPLICATE_WINDOW = Duration.ofSeconds(20);
     /** How long "end" waits for an in-flight turn before snapshotting anyway. */
     private static final long END_LOCK_WAIT_SECONDS = 8;
+    /**
+     * How long "end" waits for the last grammar inspections. The final turn's check was
+     * dispatched at most a tutor-reply ago, so this is usually already satisfied; the timeout
+     * only bounds the case where Groq is slow, and missing a note costs less than a slow save.
+     */
+    private static final long GRAMMAR_WAIT_SECONDS = 4;
     /** Documents pulled for the history list before sorting in memory. */
     private static final int HISTORY_SCAN_LIMIT = 60;
     /** Below this, a session is too short to be worth a minute of practice credit. */
@@ -77,13 +101,20 @@ public class ConversationService {
 
     private final TutorChatService tutorChatService;
     private final FirebaseService firebaseService;
+    private final GrammarWatcherAgent grammarWatcherAgent;
+    private final SessionInsightService sessionInsightService;
 
     /** sessionId → session. Bounded by {@link #pruneStaleSessions()} on every start. */
     private final Map<String, LiveSession> sessions = new ConcurrentHashMap<>();
 
-    public ConversationService(TutorChatService tutorChatService, FirebaseService firebaseService) {
+    public ConversationService(TutorChatService tutorChatService,
+                               FirebaseService firebaseService,
+                               GrammarWatcherAgent grammarWatcherAgent,
+                               SessionInsightService sessionInsightService) {
         this.tutorChatService = tutorChatService;
         this.firebaseService = firebaseService;
+        this.grammarWatcherAgent = grammarWatcherAgent;
+        this.sessionInsightService = sessionInsightService;
     }
 
     /** A conversation in progress. Mutated only while holding {@link #turnLock}. */
@@ -92,8 +123,24 @@ public class ConversationService {
         final String userId;
         final Instant startedAt;
         final TutorChatService.LearnerContext learner;
+        final PracticeMode mode;
         final List<ConversationMessage> messages = new ArrayList<>();
         final ReentrantLock turnLock = new ReentrantLock();
+
+        /**
+         * Written by the async Grammar Watcher while the tutor's reply is still being generated,
+         * read on the request thread at session end — hence copy-on-write rather than the
+         * {@code synchronized} discipline the message list uses.
+         */
+        final List<GrammarNote> grammarNotes = new CopyOnWriteArrayList<>();
+        /** Learner turns dispatched to the Grammar Watcher, and the turn index it stamps notes with. */
+        final AtomicInteger learnerTurns = new AtomicInteger();
+        /**
+         * One future per dispatched inspection, each completing with whether that utterance was
+         * genuinely checked. Session end waits briefly on these: zero notes because every check
+         * failed must not score the same as zero notes because the learner spoke well.
+         */
+        final List<CompletableFuture<Boolean>> grammarChecks = new CopyOnWriteArrayList<>();
 
         volatile Instant lastActivityAt;
         volatile boolean closed;
@@ -101,10 +148,11 @@ public class ConversationService {
         volatile PracticeSession finalRecord;
         int consecutiveNudges;
 
-        LiveSession(String sessionId, String userId, TutorChatService.LearnerContext learner) {
+        LiveSession(String sessionId, String userId, TutorChatService.LearnerContext learner, PracticeMode mode) {
             this.sessionId = sessionId;
             this.userId = userId;
             this.learner = learner;
+            this.mode = mode;
             this.startedAt = Instant.now();
             this.lastActivityAt = this.startedAt;
         }
@@ -144,25 +192,50 @@ public class ConversationService {
      * Opens a session and returns the tutor's opening line, which the browser speaks
      * immediately. Any earlier session belonging to this user is closed first — one learner
      * is one conversation, and the old one is flushed rather than dropped.
+     *
+     * @param modeId the practice mode the learner picked; null or unknown falls back to the
+     *               mode recommended for their {@code learningGoal}
      */
-    public ConversationTurnResponse start(String userId) throws ExecutionException, InterruptedException {
+    public ConversationTurnResponse start(String userId, String modeId)
+            throws ExecutionException, InterruptedException {
+
         pruneStaleSessions();
         closeOtherSessionsOf(userId);
 
         UserProfile profile = firebaseService.getUserById(userId);
-        TutorChatService.LearnerContext learner = TutorChatService.LearnerContext.from(profile);
+        PracticeMode mode = resolveMode(modeId, profile);
+        TutorChatService.LearnerContext learner = TutorChatService.LearnerContext.from(profile, mode);
 
         // Generated before the session is registered: if Groq is down there is no
         // conversation to have, so nothing is left half-open.
         String greeting = tutorChatService.openingLine(learner);
 
-        LiveSession session = new LiveSession(UUID.randomUUID().toString(), userId, learner);
+        LiveSession session = new LiveSession(UUID.randomUUID().toString(), userId, learner, mode);
         ConversationMessage message = ConversationMessage.fromTutor(greeting, ConversationMessage.KIND_GREETING);
         session.append(message);
         sessions.put(session.sessionId, session);
 
-        log.info("Practice session {} started for user {}", session.sessionId, userId);
-        return ConversationTurnResponse.started(session.sessionId, session.startedAt, message, session.size());
+        log.info("Practice session {} started for user {} in {} mode", session.sessionId, userId, mode.id());
+        return ConversationTurnResponse.started(
+                session.sessionId, session.startedAt, message, session.size(), mode.id(), mode.label());
+    }
+
+    /**
+     * An explicit mode wins; otherwise the Mode Selector picks one from the learner's stated
+     * reason for practising. Both paths end at a real mode — {@link PracticeMode#FREE_TALK} —
+     * so a stale or empty client never fails to start a session.
+     */
+    private static PracticeMode resolveMode(String modeId, UserProfile profile) {
+        if (modeId != null && !modeId.isBlank()) {
+            return PracticeMode.fromId(modeId);
+        }
+        return PracticeMode.recommendedFor(profile != null ? profile.learningGoal() : null);
+    }
+
+    /** The mode this learner's profile suggests, for the picker's "recommended" marker. */
+    public PracticeMode recommendedMode(String userId) throws ExecutionException, InterruptedException {
+        UserProfile profile = firebaseService.getUserById(userId);
+        return PracticeMode.recommendedFor(profile != null ? profile.learningGoal() : null);
     }
 
     /**
@@ -197,6 +270,13 @@ public class ConversationService {
 
             ConversationMessage learnerMessage = ConversationMessage.fromLearner(utterance);
             session.append(learnerMessage);
+
+            // Dispatched before the tutor call so the two Groq requests overlap: grammar analysis
+            // never sits on the critical path of a spoken reply, and it cannot fail this turn —
+            // GrammarWatcherAgent catches everything internally.
+            int turnIndex = session.learnerTurns.incrementAndGet();
+            session.grammarChecks.add(
+                    grammarWatcherAgent.inspect(session.learner, utterance, turnIndex, session.grammarNotes));
 
             ConversationMessage reply;
             try {
@@ -299,7 +379,8 @@ public class ConversationService {
         List<QueryDocumentSnapshot> documents = db.collection(SESSIONS_COLLECTION)
                 .whereEqualTo("userId", userId)
                 .select("sessionId", "userId", "startedAt", "endedAt", "durationSeconds",
-                        "messageCount", "userTurnCount", "userWordCount", "status", "recordingKind")
+                        "messageCount", "userTurnCount", "userWordCount", "status", "recordingKind",
+                        "mode", "fluencyScore")
                 .limit(HISTORY_SCAN_LIMIT)
                 .get()
                 .get()
@@ -393,6 +474,24 @@ public class ConversationService {
         }
 
         boolean worthKeeping = userTurnCount > 0;
+
+        SessionInsightService.SessionInsights insights = null;
+        if (worthKeeping) {
+            // Everything in here is best-effort: a broken agent produces a thinner summary,
+            // never a failed /end that loses the learner's transcript.
+            try {
+                boolean grammarRan = awaitGrammarChecks(session);
+                insights = sessionInsightService.analyse(
+                        session.learner, messages, durationSeconds, session.grammarNotes, grammarRan);
+            } catch (Exception ex) {
+                log.warn("Could not analyse session {}: {}", session.sessionId, ex.getMessage());
+            }
+        }
+
+        // Null when the session was too short to score, so the summary shows "—" rather than a
+        // number the transcript cannot support.
+        FluencyScore fluency = insights != null ? insights.fluency() : null;
+
         PracticeSession record = new PracticeSession(
                 session.sessionId,
                 session.userId,
@@ -404,11 +503,17 @@ public class ConversationService {
                 userWordCount,
                 worthKeeping ? PracticeSession.STATUS_COMPLETED : PracticeSession.STATUS_DISCARDED,
                 PracticeSession.RECORDING_TRANSCRIPT,
+                session.mode.id(),
+                fluency != null ? fluency.overall() : null,
                 messages,
-                renderTranscript(messages));
+                renderTranscript(messages),
+                fluency,
+                insights != null ? insights.grammarNotes() : null,
+                insights != null ? insights.vocabulary() : null);
 
         if (worthKeeping) {
             persist(record);
+            persistLearnerInsights(record);
             updatePracticeStats(session.userId, durationSeconds, endedAt);
             log.info("Practice session {} saved: {} turns, {}s", record.sessionId(), userTurnCount, durationSeconds);
         } else {
@@ -449,10 +554,171 @@ public class ConversationService {
         data.put("userWordCount", record.userWordCount());
         data.put("status", record.status());
         data.put("recordingKind", record.recordingKind());
+        data.put("mode", record.mode());
         data.put("messages", messages);
         data.put("transcript", record.transcript());
+        // Flat at the root as well as inside "fluency": recentSessions() projects individual
+        // fields, and a nested field path there would be one more thing to keep in sync.
+        data.put("fluencyScore", record.fluencyScore());
+        data.put("fluency", toMap(record.fluency()));
+        data.put("grammarNotes", grammarNotesToList(record.grammarNotes()));
+        data.put("vocabulary", vocabularyToList(record.vocabulary()));
 
         docRef.set(data).get();
+    }
+
+    /**
+     * Mirrors the session's corrections and new words into per-learner subcollections, so the
+     * review features in module 3 can query them directly instead of scanning every session.
+     *
+     * <p>Both writes use deterministic document ids, which makes the whole thing idempotent: a
+     * re-saved session overwrites its own rows rather than duplicating them.
+     */
+    private void persistLearnerInsights(PracticeSession record)
+            throws ExecutionException, InterruptedException {
+
+        List<GrammarNote> notes = record.grammarNotes() != null ? record.grammarNotes() : List.of();
+        List<VocabularyWord> words = record.vocabulary() != null ? record.vocabulary() : List.of();
+        if (notes.isEmpty() && words.isEmpty()) {
+            return;
+        }
+
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentReference userRef = db.collection(USERS_COLLECTION).document(record.userId());
+        Timestamp endedAt = toTimestamp(record.endedAt());
+
+        // Resolve which words the learner already has before batching, so "firstSeenAt" is set
+        // once and "timesSeen" counts sessions rather than resetting on every repeat.
+        Map<String, DocumentReference> wordRefs = new LinkedHashMap<>();
+        for (VocabularyWord word : words) {
+            String slug = word.slug();
+            if (slug != null) {
+                wordRefs.putIfAbsent(slug, userRef.collection(VOCABULARY_SUBCOLLECTION).document(slug));
+            }
+        }
+        Set<String> alreadyKnown = new HashSet<>();
+        if (!wordRefs.isEmpty()) {
+            List<DocumentSnapshot> existing =
+                    db.getAll(wordRefs.values().toArray(DocumentReference[]::new)).get();
+            for (DocumentSnapshot snapshot : existing) {
+                if (snapshot.exists()) {
+                    alreadyKnown.add(snapshot.getId());
+                }
+            }
+        }
+
+        WriteBatch batch = db.batch();
+
+        for (VocabularyWord word : words) {
+            String slug = word.slug();
+            DocumentReference ref = slug != null ? wordRefs.get(slug) : null;
+            if (ref == null) continue;
+
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("word", word.word());
+            entry.put("meaning", word.meaning());
+            entry.put("example", word.example());
+            entry.put("source", word.source());
+            entry.put("lastSessionId", record.sessionId());
+            entry.put("lastSeenAt", endedAt);
+            entry.put("timesSeen", FieldValue.increment(1));
+            if (!alreadyKnown.contains(slug)) {
+                entry.put("firstSeenAt", endedAt);
+            }
+            batch.set(ref, entry, SetOptions.merge());
+        }
+
+        for (int i = 0; i < notes.size(); i++) {
+            GrammarNote note = notes.get(i);
+            String id = record.sessionId() + "-" + i;
+
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("said", note.said());
+            entry.put("better", note.better());
+            entry.put("why", note.why());
+            entry.put("type", note.type());
+            entry.put("turnIndex", note.turnIndex());
+            entry.put("sessionId", record.sessionId());
+            entry.put("at", endedAt);
+            batch.set(userRef.collection(MISTAKES_SUBCOLLECTION).document(id), entry);
+        }
+
+        batch.commit().get();
+        log.debug("Mirrored {} word(s) and {} correction(s) for user {}",
+                words.size(), notes.size(), record.userId());
+    }
+
+    /**
+     * Waits briefly for the async grammar inspections, then reports whether any of them actually
+     * ran. False means accuracy was never measured — the fluency score rescales rather than
+     * crediting a perfect accuracy component nobody checked.
+     */
+    private static boolean awaitGrammarChecks(LiveSession session) {
+        List<CompletableFuture<Boolean>> checks = List.copyOf(session.grammarChecks);
+        if (checks.isEmpty()) {
+            return false;
+        }
+        try {
+            CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new))
+                    .get(GRAMMAR_WAIT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (Exception ex) {
+            log.debug("Grammar checks for session {} did not all finish in time", session.sessionId);
+        }
+
+        for (CompletableFuture<Boolean> check : checks) {
+            if (check.isDone() && !check.isCompletedExceptionally()
+                    && Boolean.TRUE.equals(check.getNow(Boolean.FALSE))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, Object> toMap(FluencyScore fluency) {
+        if (fluency == null) return null;
+        Map<String, Object> data = new HashMap<>();
+        data.put("overall", fluency.overall());
+        data.put("band", fluency.band());
+        data.put("participation", fluency.participation());
+        data.put("turnSubstance", fluency.turnSubstance());
+        data.put("flow", fluency.flow());
+        data.put("accuracy", fluency.accuracy());
+        data.put("range", fluency.range());
+        data.put("accuracyMeasured", fluency.accuracyMeasured());
+        data.put("wordsPerTurn", fluency.wordsPerTurn());
+        data.put("fillerCount", fluency.fillerCount());
+        return data;
+    }
+
+    private static List<Map<String, Object>> grammarNotesToList(List<GrammarNote> notes) {
+        if (notes == null || notes.isEmpty()) return List.of();
+        List<Map<String, Object>> list = new ArrayList<>(notes.size());
+        for (GrammarNote note : notes) {
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("said", note.said());
+            entry.put("better", note.better());
+            entry.put("why", note.why());
+            entry.put("type", note.type());
+            entry.put("turnIndex", note.turnIndex());
+            list.add(entry);
+        }
+        return list;
+    }
+
+    private static List<Map<String, Object>> vocabularyToList(List<VocabularyWord> words) {
+        if (words == null || words.isEmpty()) return List.of();
+        List<Map<String, Object>> list = new ArrayList<>(words.size());
+        for (VocabularyWord word : words) {
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("word", word.word());
+            entry.put("meaning", word.meaning());
+            entry.put("example", word.example());
+            entry.put("source", word.source());
+            list.add(entry);
+        }
+        return list;
     }
 
     /**
@@ -546,6 +812,7 @@ public class ConversationService {
     }
 
     private PracticeSession toSummary(DocumentSnapshot document) {
+        Long fluencyScore = document.getLong("fluencyScore");
         return new PracticeSession(
                 document.getString("sessionId"),
                 document.getString("userId"),
@@ -557,6 +824,13 @@ public class ConversationService {
                 (int) longOrZero(document, "userWordCount"),
                 document.getString("status"),
                 document.getString("recordingKind"),
+                document.getString("mode"),
+                // Left null for sessions saved before scoring existed, so the UI shows "—"
+                // instead of implying they scored zero.
+                fluencyScore != null ? fluencyScore.intValue() : null,
+                null,
+                null,
+                null,
                 null,
                 null);
     }

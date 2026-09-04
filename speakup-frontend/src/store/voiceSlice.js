@@ -11,7 +11,11 @@ import { createSlice } from '@reduxjs/toolkit'
 
 const HISTORY_LIMIT = 10
 
-/** Drops the transcript and message array; the list only ever renders the summary fields. */
+/**
+ * Drops the transcript, the message array and the per-session analysis; the list only ever
+ * renders the summary fields, and `fluencyScore` is the flat copy the backend stores at the
+ * document root for exactly that purpose.
+ */
 function toSummary(session) {
   return {
     sessionId: session.sessionId,
@@ -24,6 +28,8 @@ function toSummary(session) {
     userWordCount: session.userWordCount,
     status: session.status,
     recordingKind: session.recordingKind,
+    mode: session.mode,
+    fluencyScore: session.fluencyScore,
   }
 }
 

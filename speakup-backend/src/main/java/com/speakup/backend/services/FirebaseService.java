@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.cloud.FirestoreClient;
+import com.speakup.backend.dto.UpdateProfileRequest;
 import com.speakup.backend.models.UserProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,27 +76,37 @@ public class FirebaseService {
      * Updates an existing user's profile fields in Firestore.
      * Only non-null fields from the request are written.
      *
-     * @param userId           the Firebase UID
-     * @param nativeLanguage   the user's native language (nullable)
-     * @param englishLevel     the user's English level (nullable)
-     * @param learningGoal     the user's learning goal (nullable)
-     * @param dailyGoalMinutes the user's daily goal in minutes (nullable)
+     * <p>Takes the request record rather than a positional parameter list: with five nullable
+     * strings among the fields, a transposed argument would compile and silently write the
+     * wrong column.
+     *
+     * @param userId  the Firebase UID
+     * @param request the fields to change; nulls are left untouched
      * @return the updated UserProfile
      */
-    public UserProfile updateUserProfile(String userId, String name, String nativeLanguage,
-                                         String englishLevel, String learningGoal,
-                                         Integer dailyGoalMinutes)
+    public UserProfile updateUserProfile(String userId, UpdateProfileRequest request)
             throws ExecutionException, InterruptedException {
 
         Firestore db = FirestoreClient.getFirestore();
         DocumentReference docRef = db.collection(USERS_COLLECTION).document(userId);
 
         Map<String, Object> updates = new HashMap<>();
-        if (name != null) updates.put("name", name);
-        if (nativeLanguage != null) updates.put("nativeLanguage", nativeLanguage);
-        if (englishLevel != null) updates.put("englishLevel", englishLevel);
-        if (learningGoal != null) updates.put("learningGoal", learningGoal);
-        if (dailyGoalMinutes != null) updates.put("dailyGoalMinutes", dailyGoalMinutes);
+        if (request != null) {
+            if (request.name() != null) updates.put("name", request.name());
+            if (request.nativeLanguage() != null) updates.put("nativeLanguage", request.nativeLanguage());
+            if (request.englishLevel() != null) updates.put("englishLevel", request.englishLevel());
+            if (request.learningGoal() != null) updates.put("learningGoal", request.learningGoal());
+            if (request.dailyGoalMinutes() != null) updates.put("dailyGoalMinutes", request.dailyGoalMinutes());
+            if (request.notificationsEnabled() != null) {
+                updates.put("notificationsEnabled", request.notificationsEnabled());
+            }
+            // Only the two voices this build can actually play are storable. An unknown value is
+            // dropped rather than saved, so a stale client cannot leave the tutor mute.
+            String voice = request.tutorVoice();
+            if (UserProfile.VOICE_BROWSER.equals(voice) || UserProfile.VOICE_ELEVENLABS.equals(voice)) {
+                updates.put("tutorVoice", voice);
+            }
+        }
 
         if (!updates.isEmpty()) {
             docRef.update(updates).get();
@@ -151,6 +162,8 @@ public class FirebaseService {
                 intOrDefault(snapshot, "dailyGoalMinutes", 15),
                 intOrDefault(snapshot, "streak", 0),
                 longOrDefault(snapshot, "totalMinutesPracticed", 0L),
+                snapshot.getString("tutorVoice"),
+                Boolean.TRUE.equals(snapshot.getBoolean("notificationsEnabled")),
                 createdAt
         );
     }
@@ -171,6 +184,8 @@ public class FirebaseService {
         map.put("dailyGoalMinutes", user.dailyGoalMinutes());
         map.put("streak", user.streak());
         map.put("totalMinutesPracticed", user.totalMinutesPracticed());
+        map.put("tutorVoice", user.tutorVoiceOrDefault());
+        map.put("notificationsEnabled", user.notificationsEnabled());
         map.put("createdAt", com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
                 user.createdAt().getEpochSecond(),
                 user.createdAt().getNano()

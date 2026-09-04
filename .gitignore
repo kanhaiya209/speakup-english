@@ -31,8 +31,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # IDE & OS
+.idea
 .idea/
 *.iml
+.vscode
 .vscode/
 *.sublime-project
 *.sublime-workspace
@@ -50,3 +52,14 @@ Thumbs.db
 .kilo/
 CLAUDE.md
 claude.md
+*.mcp.json
+.mcp.json
+
+# Local shell and helper files
+.bash*
+.z*
+.profile
+.gitconfig
+.gitmodules
+.ripgreprc
+start-frontend.txt

@@ -95,19 +95,7 @@ public class UserController {
                         .body(ApiResponse.error("Unauthorized", "No authentication token provided"));
             }
 
-            String name = request != null ? request.name() : null;
-            String nativeLanguage = request != null ? request.nativeLanguage() : null;
-            String englishLevel = request != null ? request.englishLevel() : null;
-            String learningGoal = request != null ? request.learningGoal() : null;
-            Integer dailyGoalMinutes = request != null ? request.dailyGoalMinutes() : null;
-
-            UserProfile updatedUser = firebaseService.updateUserProfile(
-                    userId,
-                    name,
-                    nativeLanguage,
-                    englishLevel,
-                    learningGoal,
-                    dailyGoalMinutes);
+            UserProfile updatedUser = firebaseService.updateUserProfile(userId, request);
 
             return ResponseEntity.ok(ApiResponse.success("Profile updated", updatedUser));
 

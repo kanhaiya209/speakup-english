@@ -19,7 +19,7 @@ import {
 import { setUser } from '../store/authSlice'
 import { historyInvalidated, sessionSaved } from '../store/voiceSlice'
 import useSpeechRecognition from './useSpeechRecognition'
-import useSpeechSynthesis from './useSpeechSynthesis'
+import useTutorVoice from './useTutorVoice'
 
 /** Recognition is open and the learner has not started a phrase yet. */
 const AWAITING_SPEECH = [VOICE_STATE.WAITING_FOR_USER, VOICE_STATE.LISTENING]
@@ -195,7 +195,7 @@ export default function useVoiceConversation() {
     },
   })
 
-  const { speak, cancel: cancelSpeech, speaking: ttsSpeaking } = useSpeechSynthesis()
+  const { speak, cancel: cancelSpeech, speaking: ttsSpeaking } = useTutorVoice()
 
   /** Tears the microphone and speaker down and parks the machine in a stated failure. */
   const failSession = useCallback((message) => {
@@ -395,8 +395,13 @@ export default function useVoiceConversation() {
     runNudgeRef.current = runNudge
   }, [runNudge])
 
-  /** Opens a session: permission, then greeting, then the learner's first turn. */
-  const start = useCallback(async () => {
+  /**
+   * Opens a session: permission, then greeting, then the learner's first turn.
+   *
+   * `modeId` is optional — without it the backend uses the mode recommended for the learner's
+   * goal, and the response says which one it picked.
+   */
+  const start = useCallback(async (modeId) => {
     if (statusRef.current === VOICE_STATE.STARTING) return
     if (!support.supported) {
       setError({
@@ -439,10 +444,15 @@ export default function useVoiceConversation() {
     if (epoch !== epochRef.current || unmountedRef.current) return
 
     try {
-      const data = await startConversation()
+      const data = await startConversation(modeId)
       if (epoch !== epochRef.current || unmountedRef.current) return
       sessionIdRef.current = data.sessionId
-      setSession({ sessionId: data.sessionId, startedAt: data.startedAt })
+      setSession({
+        sessionId: data.sessionId,
+        startedAt: data.startedAt,
+        mode: data.mode,
+        modeLabel: data.modeLabel,
+      })
       appendMessage(data.reply)
       speakThenListen(data.reply.content)
     } catch (requestError) {

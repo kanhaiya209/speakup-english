@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../api/axiosConfig'
+import { TUTOR_VOICE } from '../config/voice'
+import usePushNotifications from '../hooks/usePushNotifications'
 import { setUser, logout } from '../store/authSlice'
 import Navbar from '../components/Navbar'
 
@@ -45,10 +47,24 @@ const DAILY_GOALS = [
   { value: 30, label: '30 mins', desc: 'Full immersion' },
 ]
 
+const VOICE_OPTIONS = [
+  {
+    value: TUTOR_VOICE.BROWSER,
+    label: 'Browser voice',
+    desc: 'Built into your device. Works offline and starts instantly.',
+  },
+  {
+    value: TUTOR_VOICE.NATURAL,
+    label: 'Natural voice',
+    desc: 'A warmer, more human tutor. Takes a moment longer to speak.',
+  },
+]
+
 const TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'preferences', label: 'Learning' },
   { id: 'goals', label: 'Daily goal' },
+  { id: 'voice', label: 'Voice & reminders' },
   { id: 'account', label: 'Account' },
 ]
 
@@ -65,6 +81,26 @@ const optionClass = (selected) =>
       ? 'border-line-strong bg-surface-2 text-fg'
       : 'border-line bg-canvas text-muted hover:border-line-strong hover:text-fg'
   }`
+
+const secondaryButtonClass =
+  'flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-transparent px-4 py-2.5 text-sm text-fg transition-colors hover:border-line-strong hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50'
+
+/**
+ * The one sentence under "Practice reminders".
+ *
+ * The three ways this can be unavailable need different words: "your browser cannot do it",
+ * "this build has no key" and "you said no" are not the same problem, and only the last one is
+ * the learner's to fix.
+ */
+function reminderHint({ unsupported, needsKey, permission, enabled }) {
+  if (unsupported) return 'This browser cannot receive push notifications.'
+  if (needsKey) return 'Reminders are not configured for this deployment yet.'
+  if (permission === 'denied') {
+    return 'Notifications are blocked for this site. Allow them in your browser settings to turn reminders on.'
+  }
+  if (enabled) return 'One reminder a day, on the days you have not practised yet.'
+  return 'Get one reminder a day when you have not practised yet.'
+}
 
 function Spinner() {
   return (
@@ -100,7 +136,12 @@ export default function Settings() {
   const [englishLevel, setEnglishLevel] = useState(user?.englishLevel || '')
   const [learningGoal, setLearningGoal] = useState(user?.learningGoal || '')
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(user?.dailyGoalMinutes || 15)
+  const [tutorVoice, setTutorVoice] = useState(user?.tutorVoice || TUTOR_VOICE.BROWSER)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Reminders are switched on the spot rather than on Save: a browser permission prompt and a
+  // device-token registration cannot sensibly wait for a button on the other side of the page.
+  const reminders = usePushNotifications()
 
   // Pre-fill from Redux user if it loads after mount
   useEffect(() => {
@@ -111,6 +152,7 @@ export default function Settings() {
       setEnglishLevel(user.englishLevel || '')
       setLearningGoal(user.learningGoal || '')
       setDailyGoalMinutes(user.dailyGoalMinutes || 15)
+      setTutorVoice(user.tutorVoice || TUTOR_VOICE.BROWSER)
     }
   }, [user])
 
@@ -129,6 +171,7 @@ export default function Settings() {
         englishLevel,
         learningGoal,
         dailyGoalMinutes,
+        tutorVoice,
       })
 
       if (response.data.success) {
@@ -367,6 +410,98 @@ export default function Settings() {
                       </button>
                     )
                   })}
+                </div>
+              </section>
+            )}
+
+            {/* Voice & reminders */}
+            {activeTab === 'voice' && (
+              <section className={sectionClass}>
+                <SectionHeading
+                  title="Voice & reminders"
+                  description="How your tutor sounds, and whether we nudge you on the days you have not practised."
+                />
+
+                <div className="space-y-8">
+                  <div>
+                    <span className="mb-2.5 block text-xs text-muted">Tutor voice</span>
+                    <div className="space-y-2" role="radiogroup" aria-label="Tutor voice">
+                      {VOICE_OPTIONS.map((option) => {
+                        const selected = tutorVoice === option.value
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setTutorVoice(option.value)}
+                            className={optionClass(selected)}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm">{option.label}</span>
+                              <span className="block truncate text-xs text-muted">{option.desc}</span>
+                            </span>
+                            <SelectedDot visible={selected} />
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="mt-2 text-xs text-muted">
+                      The natural voice falls back to your browser’s voice whenever it is
+                      unavailable, so a session never goes quiet.
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="mb-2.5 block text-xs text-muted">Practice reminders</span>
+                    <div className="divide-y divide-line border-y border-line">
+                      <div className="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                        <div className="min-w-0">
+                          <p className="text-sm text-fg">Daily reminder</p>
+                          <p className="mt-0.5 text-xs text-muted">
+                            {reminderHint({
+                              unsupported: reminders.unsupported,
+                              needsKey: reminders.needsKey,
+                              permission: reminders.permission,
+                              enabled: reminders.enabled,
+                            })}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={reminders.enabled ? reminders.disable : reminders.enable}
+                          disabled={
+                            reminders.busy ||
+                            (!reminders.enabled &&
+                              (!reminders.available || reminders.permission === 'denied'))
+                          }
+                          className={secondaryButtonClass}
+                        >
+                          {reminders.busy && <Spinner />}
+                          {reminders.enabled ? 'Turn off' : 'Enable reminders'}
+                        </button>
+                      </div>
+
+                      {reminders.enabled && reminders.available && (
+                        <div className="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                          <div className="min-w-0">
+                            <p className="text-sm text-fg">Send a test reminder</p>
+                            <p className="mt-0.5 text-xs text-muted">
+                              Delivers one now, so you can check it reaches this device.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={reminders.sendTest}
+                            disabled={reminders.busy}
+                            className={secondaryButtonClass}
+                          >
+                            Send test
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </section>
             )}

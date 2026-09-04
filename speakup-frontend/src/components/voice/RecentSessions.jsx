@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { describeApiError, fetchRecentSessions } from '../../api/conversationApi'
 import { historyReceived } from '../../store/voiceSlice'
-import { formatDuration, formatSessionDate } from './formatters'
+import { formatDuration, formatMode, formatSessionDate } from './formatters'
 
 /** How many saved sessions the list shows. */
 const HISTORY_LIMIT = 5
@@ -72,12 +72,24 @@ export default function RecentSessions() {
       {history.length > 0 && (
         <ul className="mt-4 divide-y divide-line">
           {history.map((entry) => (
-            <li key={entry.sessionId} className="flex items-baseline justify-between gap-4 py-3 first:pt-0 last:pb-0">
-              <span className="text-sm text-fg">{formatSessionDate(entry.endedAt)}</span>
-              <span className="text-xs text-muted">
-                {formatDuration(entry.durationSeconds)} · {entry.userTurnCount ?? 0}{' '}
-                {entry.userTurnCount === 1 ? 'turn' : 'turns'} · {entry.userWordCount ?? 0} words
-              </span>
+            <li
+              key={entry.sessionId}
+              className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="min-w-0">
+                <p className="text-sm text-fg">{formatSessionDate(entry.endedAt)}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {entry.mode && `${formatMode(entry.mode)} · `}
+                  {formatDuration(entry.durationSeconds)} · {entry.userTurnCount ?? 0}{' '}
+                  {entry.userTurnCount === 1 ? 'turn' : 'turns'} · {entry.userWordCount ?? 0} words
+                </p>
+              </div>
+              {/* An em dash, not a zero: a session too short to score has no score, and a
+                  session saved before scoring existed never had one. */}
+              <div className="shrink-0 text-right">
+                <p className="text-sm text-fg">{entry.fluencyScore ?? '—'}</p>
+                <p className="mt-0.5 text-xs text-muted">Fluency</p>
+              </div>
             </li>
           ))}
         </ul>

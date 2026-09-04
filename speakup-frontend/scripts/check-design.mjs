@@ -8,14 +8,19 @@
  * Exits 1 on any violation. Cross-platform: no bash, no grep.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative, sep, dirname } from 'node:path'
+import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const SRC = join(ROOT, 'src')
 
-/** DESIGN_SYSTEM.md §10 — the one file still on the legacy glow design. */
-const EXEMPT = [join('src', 'pages', 'ProfileSetup.jsx'), join('src', 'components', 'ui') + sep]
+/**
+ * Files exempt from the class-level rules. Empty, and it should stay that way:
+ * DESIGN_SYSTEM.md §10's legacy exception (`src/pages/ProfileSetup.jsx` and
+ * `src/components/ui/`) is gone — the page was redesigned and the components deleted.
+ * Never add a file here to make a violation pass. Fix the code.
+ */
+const EXEMPT = []
 
 const RULES = [
   {

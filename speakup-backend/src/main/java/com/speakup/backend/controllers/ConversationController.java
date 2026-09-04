@@ -3,7 +3,10 @@ package com.speakup.backend.controllers;
 import com.speakup.backend.common.ApiResponse;
 import com.speakup.backend.dto.ConversationTurnRequest;
 import com.speakup.backend.dto.ConversationTurnResponse;
+import com.speakup.backend.dto.PracticeModeResponse;
 import com.speakup.backend.dto.SessionRequest;
+import com.speakup.backend.dto.StartSessionRequest;
+import com.speakup.backend.models.PracticeMode;
 import com.speakup.backend.models.PracticeSession;
 import com.speakup.backend.services.ConversationService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -48,9 +52,34 @@ public class ConversationController {
 
     /**
      * POST /api/conversation/start — opens a session and returns the tutor's opening line.
+     * Body is optional: {@code { "mode": "job-interviews" }}. Without it the mode recommended
+     * for the learner's goal is used.
      */
     @PostMapping("/start")
-    public ResponseEntity<ApiResponse<ConversationTurnResponse>> start(HttpServletRequest httpRequest)
+    public ResponseEntity<ApiResponse<ConversationTurnResponse>> start(
+            @RequestBody(required = false) StartSessionRequest request,
+            HttpServletRequest httpRequest) throws ExecutionException, InterruptedException {
+
+        String userId = (String) httpRequest.getAttribute("userId");
+        if (userId == null) {
+            return unauthorized();
+        }
+
+        ConversationTurnResponse response =
+                conversationService.start(userId, request != null ? request.mode() : null);
+        return ResponseEntity.ok(ApiResponse.success("Practice session started", response));
+    }
+
+    /**
+     * GET /api/conversation/modes — the seven practice modes, with the one matching the caller's
+     * learning goal flagged as recommended.
+     *
+     * <p>Served from here rather than duplicated as a frontend constant: the persona prompt
+     * behind each mode lives on the server, and the ids are an API contract shared with every
+     * saved session.
+     */
+    @GetMapping("/modes")
+    public ResponseEntity<ApiResponse<List<PracticeModeResponse>>> modes(HttpServletRequest httpRequest)
             throws ExecutionException, InterruptedException {
 
         String userId = (String) httpRequest.getAttribute("userId");
@@ -58,8 +87,11 @@ public class ConversationController {
             return unauthorized();
         }
 
-        ConversationTurnResponse response = conversationService.start(userId);
-        return ResponseEntity.ok(ApiResponse.success("Practice session started", response));
+        PracticeMode recommended = conversationService.recommendedMode(userId);
+        List<PracticeModeResponse> modes = Arrays.stream(PracticeMode.values())
+                .map(mode -> PracticeModeResponse.of(mode, mode == recommended))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success("Practice modes retrieved", modes));
     }
 
     /**
